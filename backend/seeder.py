@@ -9,7 +9,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # Database connection
 MONGO_URI = os.getenv("MONGO_URL", "mongodb://localhost:27017")
-DB_NAME = "railyn_db"
+DB_NAME = "railyn"
 
 print(f"Connecting to MongoDB...")
 client = MongoClient(MONGO_URI)
