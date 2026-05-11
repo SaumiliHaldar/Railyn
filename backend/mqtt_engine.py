@@ -2,6 +2,7 @@ import os
 import json
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
+import shared_mem
 
 load_dotenv()
 
@@ -31,16 +32,19 @@ async def handle_waitlist_upgrade(db, train_number, class_type):
     if not wl_booking:
         return # No waitlist to clear
         
-    # 2. Check if there are seats available
-    train = await db.trains.find_one({"number": train_number})
-    available = train.get("seat_inventory", {}).get(class_type, 0)
+    # 2. Check if there are seats available in SHM
+    available = shared_mem.get_seats(train_number, class_type)
     
-    if available > 0:
+    if available is not None and available > 0:
         print(f"Upgrading Waitlist for {train_number} {class_type}!")
-        # Upgrade to CNF
+        # 1. Update Shared Memory (Immediate)
+        new_count = shared_mem.update_seats(train_number, class_type, -1)
+        
+        # 2. Upgrade to CNF in DB
         await db.bookings.update_one({"_id": wl_booking["_id"]}, {"$set": {"status": "CNF", "wl_position": None}})
-        # Decrement inventory
-        await db.trains.update_one({"number": train_number}, {"$inc": {f"seat_inventory.{class_type}": -1}})
+        
+        # 3. Sync inventory to DB
+        await db.trains.update_one({"number": train_number}, {"$set": {f"seat_inventory.{class_type}": new_count}})
         # Shift other waitlist positions up
         await db.bookings.update_many(
             {"train_number": train_number, "class_type": class_type, "status": "WL", "wl_position": {"$gt": wl_booking["wl_position"]}},
