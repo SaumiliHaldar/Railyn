@@ -90,16 +90,24 @@ async def handle_delay(db, delay_event):
         alt_train = await alt_train_cursor.to_list(length=1)
         if alt_train:
             new_train_number = alt_train[0]["train_number"]
-            print(f"Proposing swap from {train_number} to {new_train_number} for user {booking['user_id']}")
             
-            # 3. Fire Actionable MQTT Prompt
-            push_notification(booking["user_id"], "action", {
-                "title": "Train Delayed ⚠️",
-                "message": f"Train {train_number} is delayed by {delay_hours} hours.",
-                "action_prompt": f"Swap to Train {new_train_number} arriving shortly?",
-                "action_endpoint": "/swap_tkt",
-                "payload": {
-                    "old_booking_id": str(booking["_id"]),
-                    "new_train_number": new_train_number
-                }
-            })
+            # Check availability in Shared Memory before proposing
+            available = shared_mem.get_seats(new_train_number, booking["class_type"])
+            num_passengers = len(booking.get("passengers", [1])) # Default to 1 if not found
+            
+            if available is not None and available >= num_passengers:
+                print(f"Proposing swap from {train_number} to {new_train_number} for user {booking['user_id']}")
+                
+                # 3. Fire Actionable MQTT Prompt
+                push_notification(booking["user_id"], "action", {
+                    "title": "Train Delayed ⚠️",
+                    "message": f"Train {train_number} is delayed by {delay_hours} hours. Seats are available on {new_train_number}.",
+                    "action_prompt": f"Swap to Train {new_train_number} arriving shortly?",
+                    "action_endpoint": "/swap_tkt",
+                    "payload": {
+                        "old_booking_id": str(booking["_id"]),
+                        "new_train_number": new_train_number
+                    }
+                })
+            else:
+                print(f"Skipping swap proposal for user {booking['user_id']}: No seats on alternative {new_train_number}")

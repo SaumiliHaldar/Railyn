@@ -312,7 +312,7 @@ const Dashboard = () => {
                   {/* ── Card Bottom ── */}
                   <div className="ticket-footer">
                     <span className="passenger-label">
-                      {b.passenger_name} · {b.passenger_age} yrs · {b.class_type}
+                      {b.passengers?.length || 0} {b.passengers?.length === 1 ? 'Passenger' : 'Passengers'} · {b.class_type}
                     </span>
                     <div className="card-actions">
                       {b.status !== "CANCELLED" && (

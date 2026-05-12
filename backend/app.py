@@ -19,7 +19,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-import mqtt_engine, shared_mem
+import mqtt_engine, shared_mem, pricing
 from bson.objectid import ObjectId
 
 load_dotenv()
@@ -126,13 +126,9 @@ CLASS_MULTIPLIERS = {
 }
 BASE_RATE = 0.65 # INR per KM
 
-def calculate_fare(h, m, cls):
-    # Synthetic distance: avg speed 55km/h
-    dist = (h + (m/60)) * 55
-    mult = CLASS_MULTIPLIERS.get(cls, 1.0)
-    fare = int(dist * BASE_RATE * mult)
-    # Ensure min 3 digits and max 4 digits (as requested)
-    return min(max(fare, 140), 9999)
+def calculate_fare(dist, cls, train_type="Express", age=30):
+    res = pricing.FareEngine.calculate_fare(dist, cls, train_type, age)
+    return res["total"]
     new_train_number: str
 
 class UserRequest(BaseModel):
@@ -232,13 +228,32 @@ async def train_search(request: Request, from_stn: str, to_stn: str):
         if real_inv:
             t["seat_inventory"] = real_inv
             
-        # Add dynamic pricing for each class
+        # Add dynamic pricing and waitlist probability for each class
         fares = {}
-        h = t.get("duration_h", 5)
-        m = t.get("duration_m", 0)
+        probabilities = {}
+        dist = t.get("distance", 100) # Use real distance if available, else default
+        t_type = t.get("type", "Express")
+        
         for cls in shared_mem.CLASSES:
-            fares[cls] = calculate_fare(h, m, cls)
+            fares[cls] = calculate_fare(dist, cls, t_type)
+            
+            # Smart Waitlist Probability Heuristic
+            count = t["seat_inventory"].get(cls, 0)
+            if count > 0:
+                probabilities[cls] = "High"
+            else:
+                wl_pos = abs(count)
+                # Simple heuristic: lower WL pos and more time to journey = higher prob
+                # Here we simulate with random/fixed logic for the demo
+                if wl_pos < 15:
+                    probabilities[cls] = "High"
+                elif wl_pos < 40:
+                    probabilities[cls] = "Medium"
+                else:
+                    probabilities[cls] = "Low"
+                    
         t["fares"] = fares
+        t["wl_probabilities"] = probabilities
 
     return {"results": trains}
 
@@ -306,6 +321,11 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
                 "seat": wl_position,
                 "status": "WL"
             })
+
+    # Calculate Total Fare accurately using the engine for each passenger
+    dist = train.get("distance", 100)
+    t_type = train.get("type", "Express")
+    total_fare = sum([calculate_fare(dist, booking.class_type, t_type, p.age) for p in booking.passengers])
 
     # Generate 10-digit PNR
     pnr = "".join([str(random.randint(0, 9)) for _ in range(10)])
@@ -541,16 +561,74 @@ async def generate_qr(
 
 # ─── PNR Search ───────────────────────────────────────────────────────────────
 
-@app.get("/search_booking/{pnr}")
-async def search_booking_by_pnr(pnr: str, user=Depends(verify_token)):
-    db = client[DB_NAME]
-    user_id = user["sub"]
-    
-    # Search across all bookings with this PNR
-    booking = await db.bookings.find_one({"pnr": pnr})
-    
+@app.get("/pnr_status/{pnr}")
+@limiter.limit("30/minute")
+async def get_pnr_status(request: Request, pnr: str):
+    db = request.app.state.db
+    booking = await db.bookings.find_one({"pnr": pnr}, {"_id": 0})
     if not booking:
-        raise HTTPException(status_code=404, detail="No booking found with this PNR")
+        raise HTTPException(status_code=404, detail="PNR not found or invalid")
+    return {"booking": booking}
+
+# ─── Train Vacancy Chart ───────────────────────────────────────────────────────
+
+@app.get("/train_chart/{train_id}")
+async def get_train_chart(request: Request, train_id: str):
+    import zlib
+    db = request.app.state.db
+    # The trains collection stores number as 'number' and name as 'name'
+    # Support searching by train number OR by train name (regex)
+    query = {"$or": [{"number": train_id}, {"name": {"$regex": train_id, "$options": "i"}}]}
+    train = await db.trains.find_one(query, {"_id": 0})
     
-    booking["_id"] = str(booking["_id"])
-    return booking
+    if not train:
+        raise HTTPException(status_code=404, detail="Train not found")
+        
+    coaches = []
+    inventory = train.get("seat_inventory", {})
+    train_number = train.get("number", "")
+    train_name = train.get("name", "")
+    
+    for cls, count in inventory.items():
+        prefix = "S" if cls == "Sleeper" else "B" if cls == "3AC" else "A" if cls == "2AC" else "H"
+        num_coaches = 3 if cls in ["Sleeper", "3AC"] else 1
+        
+        for i in range(1, num_coaches + 1):
+            coach_id = f"{prefix}{i}"
+            max_seats = 72 if cls in ["Sleeper", "3AC"] else 46
+            
+            # Simulated inventory per coach
+            coach_inv = min(max_seats, count // num_coaches)
+            
+            seats = []
+            for s in range(1, max_seats + 1):
+                # Deterministic occupancy based on train number (not train_number field)
+                seed = zlib.adler32(f"{train_number}{coach_id}{s}".encode())
+                is_occupied = (seed % 100) > (coach_inv / max_seats * 100 + 10)
+                
+                # IRCTC Layout logic for 8-seat compartments (SL/3A)
+                berth_type = "LB"
+                if s % 8 in [1, 4]: berth_type = "LB"
+                elif s % 8 in [2, 5]: berth_type = "MB"
+                elif s % 8 in [3, 6]: berth_type = "UB"
+                elif s % 8 == 7: berth_type = "SL"
+                elif s % 8 == 0: berth_type = "SU"
+
+                seats.append({
+                    "num": s,
+                    "type": berth_type,
+                    "is_occupied": is_occupied
+                })
+                
+            coaches.append({
+                "coach": coach_id,
+                "class_name": cls,
+                "available": len([s for s in seats if not s["is_occupied"]]),
+                "seats": seats
+            })
+            
+    return {
+        "train": train_name,
+        "train_number": train_number,
+        "coaches": sorted(coaches, key=lambda x: x['coach'])
+    }

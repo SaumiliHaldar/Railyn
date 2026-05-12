@@ -44,12 +44,25 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
+  padding-top: clamp(80px, 10vh, 140px);
+  padding-bottom: 40px;
   background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url('./assets/forest_railway_hero.png');
   background-size: cover;
   background-position: center;
-  overflow: hidden;
+  background-attachment: fixed;
+  overflow: auto;
+}
+
+@media (max-height: 800px) and (min-width: 1024px) {
+  .hero-container {
+    padding-top: 60px;
+  }
+  .hero-title {
+    font-size: 52px;
+    margin-bottom: 16px;
+  }
 }
 
 /* Navbar Styles */
@@ -57,12 +70,23 @@ body {
   position: absolute;
   top: 0;
   width: 100%;
-  padding: 32px 80px;
+  padding: 24px 5%;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  z-index: 100;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+  z-index: 1000;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+}
+@media (max-width: 768px) {
+  .navbar {
+    padding: 16px 20px;
+  }
+  .nav-links {
+    display: none;
+  }
+  .nav-logo {
+    font-size: 20px;
+  }
 }
 
 .nav-links {
@@ -140,11 +164,12 @@ body {
 
 .hero-title {
   font-family: var(--heading);
-  font-size: 84px;
+  font-size: clamp(32px, 8vw, 84px);
   font-weight: 700;
   line-height: 1.1;
   margin-bottom: 24px;
   text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  padding: 0 20px;
 }
 
 .hero-description {
@@ -163,17 +188,47 @@ body {
 }
 
 .search-widget {
-  background: rgba(255, 255, 255, 0.98);
-  border-radius: 0 20px 20px 20px; /* Rounded corners except top-left to align with tab */
-  padding: 40px;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+  background: #ffffff;
+  border-radius: 0 16px 16px 16px;
+  padding: 32px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
   color: #1a1a1a;
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid rgba(0,0,0,0.05);
+  min-height: 280px; /* Constant size for all tabs */
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 768px) {
+  .search-widget {
+    padding: 24px 16px;
+    border-radius: 12px;
+    min-height: auto; /* Allow natural height on mobile to save space */
+  }
+  .widget-tabs {
+    flex-wrap: wrap;
+  }
 }
 
 .widget-tabs {
   display: flex;
-  margin-bottom: -1px; /* Overlap border */
+  margin-bottom: -1px;
+}
+
+@media (max-width: 768px) {
+  .widget-tabs {
+    flex-direction: column;
+    width: 100%;
+  }
+  .tab {
+    width: 100%;
+    border-radius: 12px 12px 0 0 !important;
+    margin-bottom: 4px;
+    padding: 12px 20px;
+  }
+  .search-widget {
+    border-radius: 16px;
+    padding: 24px 16px;
+  }
 }
 
 .tab {
@@ -199,9 +254,50 @@ body {
 
 .search-form {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.2fr 0.8fr;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
   align-items: flex-end;
+}
+
+@media (max-width: 768px) {
+  .search-form {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: white;
+  border-radius: 12px;
+  margin-top: 8px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  z-index: 1000;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  padding: 8px 0;
+}
+
+.suggestion-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.suggestion-item:hover {
+  background: #f5f5f5;
+}
+
+.suggestion-item strong {
+  color: var(--primary);
+  min-width: 45px;
 }
 
 .input-group {
@@ -219,11 +315,11 @@ body {
 }
 
 .input-group input {
-  padding: 14px 16px 14px 44px;
-  border-radius: 12px;
+  padding: 12px 14px 12px 40px;
+  border-radius: 10px;
   border: 1px solid #e0e0e0;
   background: #fdfdfd;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #1a1a1a;
   transition: all 0.2s;
@@ -1452,6 +1548,36 @@ body {
   }
 }
 
+@media (max-width: 768px) {
+  .hero-container {
+    height: auto;
+    min-height: 100vh;
+    justify-content: flex-start;
+    padding-top: 100px;
+    padding-bottom: 40px;
+  }
+  
+  .train-card {
+    flex-direction: column;
+    padding: 20px;
+  }
+  
+  .train-info {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+  
+  .time-display {
+    justify-content: center;
+  }
+  
+  .class-grid {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+}
+
 @media (max-width: 600px) {
   .physical-ticket {
     max-width: 100%;
@@ -1463,8 +1589,103 @@ body {
     height: 70px;
   }
   
-  .ticket-header .passenger-name { font-size: 20px; }
-  .ticket-stn-row .stn-city { font-size: 18px; }
-  .ticket-info-item .val { font-size: 15px; }
-  .booking-ref-box .ref-num { font-size: 18px; }
+  .ticket-header .passenger-name { font-size: 18px; }
+  .ticket-stn-row .stn-city { font-size: 16px; }
+  .ticket-info-item .val { font-size: 14px; }
+  .booking-ref-box .ref-num { font-size: 16px; }
+}
+
+/* Compact Modal Utilities */
+.booking-modal {
+  width: 100%;
+  max-width: 480px !important;
+  border-radius: 24px !important;
+}
+
+.modal-header {
+  padding: 20px 24px !important;
+}
+
+.modal-body {
+  padding: 20px 24px !important;
+}
+
+.modal-footer {
+  padding: 20px 24px !important;
+}
+
+/* Processing State */
+.processing-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  text-align: center;
+}
+
+.loader-ring {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 24px;
+}
+
+/* Waitlist Probability Badges */
+.train-meta-footer {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px dashed #eee;
+}
+
+.prob-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.prob-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.prob-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.prob-badge.high {
+  background: rgba(30, 111, 43, 0.1);
+  color: #1E6F2B;
+}
+
+.prob-badge.medium {
+  background: rgba(251, 191, 36, 0.1);
+  color: #b45309;
+}
+
+.prob-badge.low {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+/* Skeleton Loading State (Optional but good for stability) */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
