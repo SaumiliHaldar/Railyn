@@ -6,8 +6,10 @@ import requests
 import random
 import string
 import qrcode
+import zlib
 from PIL import Image
 from jose import jwt
+from datetime import datetime
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -573,9 +575,12 @@ async def get_pnr_status(request: Request, pnr: str):
 # ─── Train Vacancy Chart ───────────────────────────────────────────────────────
 
 @app.get("/train_chart/{train_id}")
-async def get_train_chart(request: Request, train_id: str):
-    import zlib
+async def get_train_chart(request: Request, train_id: str, date: Optional[str] = None):    
     db = request.app.state.db
+    # If no date is provided, use today's date in YYYY-MM-DD format
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+
     # The trains collection stores number as 'number' and name as 'name'
     # Support searching by train number OR by train name (regex)
     query = {"$or": [{"number": train_id}, {"name": {"$regex": train_id, "$options": "i"}}]}
@@ -588,6 +593,20 @@ async def get_train_chart(request: Request, train_id: str):
     inventory = train.get("seat_inventory", {})
     train_number = train.get("number", "")
     train_name = train.get("name", "")
+
+    # Fetch all active bookings for this train on this SPECIFIC DATE
+    bookings_cursor = db.bookings.find({
+        "train_number": train_number, 
+        "travel_date": date,
+        "status": "CNF"
+    })
+    bookings = await bookings_cursor.to_list(length=1000)
+    
+    occupied_seats = set()
+    for b in bookings:
+        for p in b.get("passengers", []):
+            if p.get("status") == "CNF" and p.get("coach") and p.get("seat"):
+                occupied_seats.add(f"{p['coach']}_{p['seat']}")
     
     for cls, count in inventory.items():
         prefix = "S" if cls == "Sleeper" else "B" if cls == "3AC" else "A" if cls == "2AC" else "H"
@@ -597,22 +616,38 @@ async def get_train_chart(request: Request, train_id: str):
             coach_id = f"{prefix}{i}"
             max_seats = 72 if cls in ["Sleeper", "3AC"] else 46
             
-            # Simulated inventory per coach
+            # Simulated inventory per coach (for seats not explicitly booked)
             coach_inv = min(max_seats, count // num_coaches)
             
             seats = []
             for s in range(1, max_seats + 1):
-                # Deterministic occupancy based on train number (not train_number field)
-                seed = zlib.adler32(f"{train_number}{coach_id}{s}".encode())
-                is_occupied = (seed % 100) > (coach_inv / max_seats * 100 + 10)
+                seat_key = f"{coach_id}_{s}"
                 
+                # Check if explicitly booked in DB
+                if seat_key in occupied_seats:
+                    is_occupied = True
+                else:
+                    # Deterministic occupancy for the rest to make it look realistic/full
+                    seed = zlib.adler32(f"{train_number}{coach_id}{s}{date}".encode())
+                    # Only simulate occupancy if total available is less than max
+                    is_occupied = (seed % 100) > (coach_inv / max_seats * 100 + 5)
+
                 # IRCTC Layout logic for 8-seat compartments (SL/3A)
                 berth_type = "LB"
-                if s % 8 in [1, 4]: berth_type = "LB"
-                elif s % 8 in [2, 5]: berth_type = "MB"
-                elif s % 8 in [3, 6]: berth_type = "UB"
-                elif s % 8 == 7: berth_type = "SL"
-                elif s % 8 == 0: berth_type = "SU"
+                if cls in ["Sleeper", "3AC"]:
+                    if s % 8 in [1, 4]: berth_type = "LB"
+                    elif s % 8 in [2, 5]: berth_type = "MB"
+                    elif s % 8 in [3, 6]: berth_type = "UB"
+                    elif s % 8 == 7: berth_type = "SL"
+                    elif s % 8 == 0: berth_type = "SU"
+                elif cls == "2AC":
+                    # 2AC has 4 seats in compartment + 2 side berths = 6 total per section
+                    if s % 6 in [1, 3]: berth_type = "LB"
+                    elif s % 6 in [2, 4]: berth_type = "UB"
+                    elif s % 6 == 5: berth_type = "SL"
+                    elif s % 6 == 0: berth_type = "SU"
+                else: # 1AC or other
+                    berth_type = "LB" if s % 2 == 1 else "UB"
 
                 seats.append({
                     "num": s,
@@ -630,5 +665,6 @@ async def get_train_chart(request: Request, train_id: str):
     return {
         "train": train_name,
         "train_number": train_number,
+        "date": date,
         "coaches": sorted(coaches, key=lambda x: x['coach'])
     }

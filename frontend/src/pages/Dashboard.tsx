@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import mqtt from "mqtt";
 import Ticket from "../components/Ticket";
+import { formatDate } from "../utils/dateUtils";
 
 const API_URL  = import.meta.env.VITE_API_URL;
 const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
@@ -33,6 +34,7 @@ const Dashboard = () => {
   const [pnrSearch,      setPnrSearch]      = useState("");
   const [searchLoading,  setSearchLoading]  = useState(false);
   const [searchError,    setSearchError]    = useState("");
+  const [showConfirm,    setShowConfirm]    = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
   const [cancelTarget,   setCancelTarget]   = useState<any>(null);
   const [paxToCancel,    setPaxToCancel]    = useState<string[]>([]);
   const mqttRef = useRef<any>(null);
@@ -80,19 +82,24 @@ const Dashboard = () => {
 
   const handleConfirmCancel = async () => {
     if (paxToCancel.length === 0) return alert("Please select at least one passenger to cancel.");
-    if (!window.confirm(`Cancel ${paxToCancel.length} passenger(s)?`)) return;
-
-    const token = await getToken();
-    await fetch(`${API_URL}/cancel_tkt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ 
-        booking_id: cancelTarget._id,
-        passenger_names: paxToCancel
-      }),
+    
+    setShowConfirm({
+      title: "Final Confirmation",
+      message: `Are you sure you want to cancel ${paxToCancel.length} passenger(s)? This action cannot be undone.`,
+      onConfirm: async () => {
+        const token = await getToken();
+        await fetch(`${API_URL}/cancel_tkt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ 
+            booking_id: cancelTarget._id,
+            passenger_names: paxToCancel
+          }),
+        });
+        setCancelTarget(null);
+        fetchBookings();
+      }
     });
-    setCancelTarget(null);
-    fetchBookings();
   };
 
   const handleSwap = async (n: any) => {
@@ -267,10 +274,12 @@ const Dashboard = () => {
                     {/* Train info column */}
                     <div className="train-info">
                       <span className="pnr">PNR: {b.pnr}</span>
-                      <h3>
-                        {b.train_name}
-                        <small className="train-num"> #{b.train_number}</small>
-                      </h3>
+                      <div className="train-name-group">
+                        <h3>{b.train_name}</h3>
+                        <div className="train-num-row">
+                          <span className="label-tiny">Train No.</span> {b.train_number}
+                        </div>
+                      </div>
                       <div className="status-badge" data-status={b.status}>
                         {b.status}{b.wl_position ? ` (${b.wl_position})` : ""}
                       </div>
@@ -297,14 +306,11 @@ const Dashboard = () => {
                     <div className="passenger-brief">
                       <div className="item">
                         <Calendar size={13} />
-                        <span>{b.travel_date}</span>
+                        <span>{formatDate(b.travel_date)}</span>
                       </div>
                       <div className="item">
                         <Clock size={13} />
                         <span>{b.departure} → {b.arrival}</span>
-                      </div>
-                      <div className="item accent">
-                        <span>Coach {b.coach} · Seat {b.seat}</span>
                       </div>
                     </div>
                   </div>
@@ -330,6 +336,40 @@ const Dashboard = () => {
             </motion.div>
           )}
 
+          {/* Professional Confirmation Modal */}
+          <AnimatePresence>
+            {showConfirm && (
+              <div className="modal-overlay" style={{ zIndex: 3000 }} onClick={() => setShowConfirm(null)}>
+                <motion.div 
+                  className="confirm-dialog-card"
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="dialog-header">
+                    <AlertCircle size={24} className="dialog-icon" />
+                    <h3>{showConfirm.title}</h3>
+                  </div>
+                  <p className="dialog-message">{showConfirm.message}</p>
+                  <div className="dialog-actions">
+                    <button className="btn-secondary-outline" onClick={() => setShowConfirm(null)}>
+                      No, Cancel
+                    </button>
+                    <button 
+                      className="btn-danger-confirm" 
+                      onClick={() => {
+                        showConfirm.onConfirm();
+                        setShowConfirm(null);
+                      }}
+                    >
+                      Yes, Proceed
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

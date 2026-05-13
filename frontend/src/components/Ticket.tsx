@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Train } from 'lucide-react';
+import { formatDate } from '../utils/dateUtils';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -72,7 +73,12 @@ const Ticket: React.FC<TicketProps> = ({
               {primaryPax.name} 
               {passengers.length > 1 && <span style={{ fontSize: '14px', opacity: 0.6, fontWeight: 500 }}> + {passengers.length - 1} more</span>}
             </h2>
-            <span className="ticket-train-name">{trainName} <small>#{trainNumber}</small></span>
+            <div className="ticket-train-info">
+              <span className="ticket-train-name">{trainName}</span>
+              <span className="ticket-train-number">
+                <span className="label-tiny">Train No.</span> {trainNumber}
+              </span>
+            </div>
           </div>
           <div className="status-badge" data-status={status} style={{ margin: 0, flexShrink: 0 }}>
             {status}
@@ -81,7 +87,7 @@ const Ticket: React.FC<TicketProps> = ({
         
         <div className="ticket-route-row" style={{ marginTop: '20px' }}>
           <div className="time">{departureTime || '-'}</div>
-          <div className="duration">{date}</div>
+          <div className="duration">{formatDate(date)}</div>
           <div className="time">{arrivalTime || '-'}</div>
         </div>
 

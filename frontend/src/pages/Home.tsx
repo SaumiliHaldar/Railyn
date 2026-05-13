@@ -3,6 +3,7 @@ import { Search, MapPin, Calendar, Train, Clock, X } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Ticket from "../components/Ticket";
+import { formatDate } from "../utils/dateUtils";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -36,6 +37,8 @@ const Home = () => {
   const [chartResult, setChartResult] = useState(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState(null);
+  const [chartDate, setChartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [viewingTicket, setViewingTicket] = useState(null);
 
   useEffect(() => {
     const registerUser = async () => {
@@ -57,6 +60,23 @@ const Home = () => {
       }
     };
     registerUser();
+
+    // Support URL parameters for pre-filling search (e.g. Book Again)
+    const params = new URLSearchParams(window.location.search);
+    const f = params.get('from');
+    const t = params.get('to');
+    const d = params.get('date');
+    if (f) setFromStn(f);
+    if (t) setToStn(t);
+    if (d) setDate(d);
+    
+    // Auto-search if we have enough info
+    if (f && t) {
+      setTimeout(() => {
+        const searchBtn = document.querySelector('.btn-search');
+        if (searchBtn instanceof HTMLElement) searchBtn.click();
+      }, 500);
+    }
   }, [user]);
 
   const handleStationSearch = async (query, setSuggestions) => {
@@ -179,7 +199,7 @@ const Home = () => {
     setChartLoading(true);
     setChartResult(null);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/train_chart/${chartTrain}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/train_chart/${chartTrain}?date=${chartDate}`);
       const data = await res.json();
       if (res.ok) {
         setChartResult(data);
@@ -364,23 +384,31 @@ const Home = () => {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                       <div>
                         <span style={{ fontSize: '11px', color: '#64748b' }}>Train</span>
                         <div style={{ fontSize: '14px', fontWeight: 600 }}>{pnrResult.train_name} ({pnrResult.train_number})</div>
                       </div>
                       <div>
                         <span style={{ fontSize: '11px', color: '#64748b' }}>Journey Date</span>
-                        <div style={{ fontSize: '14px', fontWeight: 600 }}>{pnrResult.travel_date}</div>
+                        <div style={{ fontSize: '14px', fontWeight: 600 }}>{formatDate(pnrResult.travel_date)}</div>
                       </div>
                     </div>
+
+                    <button 
+                      className="btn btn-outline" 
+                      style={{ width: '100%', borderColor: '#e2e8f0', color: '#1e293b' }}
+                      onClick={() => setViewingTicket(pnrResult)}
+                    >
+                      View Full Ticket Details
+                    </button>
                   </motion.div>
                 )}
               </div>
             ) : (
               <div className="chart-search-container" style={{ padding: '20px 0' }}>
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  <div className="input-group" style={{ flex: 1, minWidth: '200px' }}>
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  <div className="input-group" style={{ flex: 2, minWidth: '200px' }}>
                     <label>Train Number / Name</label>
                     <input 
                       type="text" 
@@ -388,6 +416,15 @@ const Home = () => {
                       value={chartTrain}
                       onChange={(e) => setChartTrain(e.target.value)}
                       style={{ height: '52px', fontSize: '16px' }}
+                    />
+                  </div>
+                  <div className="input-group" style={{ flex: 1, minWidth: '160px' }}>
+                    <label>Journey Date</label>
+                    <input 
+                      type="date" 
+                      value={chartDate}
+                      onChange={(e) => setChartDate(e.target.value)}
+                      style={{ height: '52px', fontSize: '15px' }}
                     />
                   </div>
                   <button 
@@ -408,7 +445,7 @@ const Home = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                       <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
-                        {chartResult.train_number} - {chartResult.train}
+                        {chartResult.train_number} - {chartResult.train} | {formatDate(chartDate)}
                       </h4>
                       <div style={{ background: '#dcfce7', color: '#166534', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700 }}>
                         {chartResult.coaches.reduce((acc, curr) => acc + curr.available, 0)} Total Vacant
@@ -441,64 +478,61 @@ const Home = () => {
 
                     {/* Realistic Seat Map */}
                     {selectedCoach && (
-                      <div className="realistic-coach-map" style={{ 
-                        background: '#f8fafc', 
-                        padding: '24px', 
-                        borderRadius: '20px', 
-                        border: '2px solid #e2e8f0',
-                        maxHeight: '400px',
-                        overflowY: 'auto'
-                      }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-                          {/* We'll render seats in compartments of 8 */}
-                          {Array.from({ length: Math.ceil(selectedCoach.seats.length / 8) }).map((_, compartmentIdx) => (
-                            <React.Fragment key={compartmentIdx}>
-                              <div style={{ gridColumn: 'span 4', height: '1px', background: '#e2e8f0', margin: '8px 0' }} />
-                              
-                              {/* Left Side (6 seats) */}
-                              <div style={{ gridColumn: 'span 3', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                                {selectedCoach.seats.slice(compartmentIdx * 8, compartmentIdx * 8 + 6).map(s => (
-                                  <div key={s.num} style={{ 
-                                    padding: '8px 4px', 
-                                    borderRadius: '6px', 
-                                    background: s.is_occupied ? '#fee2e2' : '#dcfce7',
-                                    border: '1px solid',
-                                    borderColor: s.is_occupied ? '#fecaca' : '#bbf7d0',
-                                    textAlign: 'center',
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    color: s.is_occupied ? '#991b1b' : '#166534'
-                                  }}>
-                                    {s.num}
-                                    <div style={{ fontSize: '8px', opacity: 0.7 }}>{s.type}</div>
-                                  </div>
-                                ))}
-                              </div>
+                      <div className="realistic-coach-map">
+                        <div className="seat-legend">
+                          <div className="legend-item">
+                            <div className="legend-box vacant"></div> Vacant
+                          </div>
+                          <div className="legend-item">
+                            <div className="legend-box occupied"></div> Occupied
+                          </div>
+                        </div>
 
-                              {/* Aisle Spacer */}
-                              <div style={{ width: '20px' }} />
-
-                              {/* Right Side (2 side berths) */}
-                              <div style={{ display: 'grid', gridTemplateRows: '1fr 1fr', gap: '8px' }}>
-                                {selectedCoach.seats.slice(compartmentIdx * 8 + 6, compartmentIdx * 8 + 8).map(s => (
-                                  <div key={s.num} style={{ 
-                                    padding: '8px 4px', 
-                                    borderRadius: '6px', 
-                                    background: s.is_occupied ? '#fee2e2' : '#dcfce7',
-                                    border: '1px solid',
-                                    borderColor: s.is_occupied ? '#fecaca' : '#bbf7d0',
-                                    textAlign: 'center',
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    color: s.is_occupied ? '#991b1b' : '#166534'
-                                  }}>
-                                    {s.num}
-                                    <div style={{ fontSize: '8px', opacity: 0.7 }}>{s.type}</div>
+                        <div className="compartment-grid">
+                          {Array.from({ 
+                            length: Math.ceil(selectedCoach.seats.length / (selectedCoach.class_name === '2AC' ? 6 : 8)) 
+                          }).map((_, bayIdx) => {
+                            const baySize = selectedCoach.class_name === '2AC' ? 6 : 8;
+                            const mainSize = selectedCoach.class_name === '2AC' ? 4 : 6;
+                            const baySeats = selectedCoach.seats.slice(bayIdx * baySize, bayIdx * baySize + baySize);
+                            
+                            return (
+                              <React.Fragment key={bayIdx}>
+                                <div className={`bay-section ${selectedCoach.class_name === '2AC' ? 'ac2' : ''}`}>
+                                  {/* Main Bay (Left Side) */}
+                                  <div className={`main-bay ${selectedCoach.class_name === '2AC' ? 'ac2' : ''}`}>
+                                    {baySeats.slice(0, mainSize).map(s => (
+                                      <motion.div 
+                                        whileHover={{ scale: 1.05 }}
+                                        key={s.num} 
+                                        className={`seat-unit ${s.is_occupied ? 'occupied' : 'vacant'}`}
+                                      >
+                                        <span className="seat-num">{s.num}</span>
+                                        <span className="seat-type">{s.type}</span>
+                                      </motion.div>
+                                    ))}
                                   </div>
-                                ))}
-                              </div>
-                            </React.Fragment>
-                          ))}
+
+                                  {/* Aisle */}
+                                  <div className="coach-aisle">AISLE</div>
+
+                                  {/* Side Bay (Right Side) */}
+                                  <div className="side-bay">
+                                    {baySeats.slice(mainSize).map(s => (
+                                      <motion.div 
+                                        whileHover={{ scale: 1.05 }}
+                                        key={s.num} 
+                                        className={`seat-unit ${s.is_occupied ? 'occupied' : 'vacant'}`}
+                                      >
+                                        <span className="seat-num">{s.num}</span>
+                                        <span className="seat-type">{s.type}</span>
+                                      </motion.div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </React.Fragment>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -771,6 +805,47 @@ const Home = () => {
                   </div>
                 </>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Viewing Ticket Modal (e.g. from PNR search) */}
+      <AnimatePresence>
+        {viewingTicket && (
+          <div className="modal-overlay" onClick={() => setViewingTicket(null)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.88, y: 24 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.88, y: 24 }}
+              onClick={e => e.stopPropagation()}
+              className="booking-modal"
+              style={{ background: 'transparent', padding: 0, maxWidth: '520px', boxShadow: 'none' }}
+            >
+              <div className="ticket-wrapper">
+                <Ticket 
+                  pnr={viewingTicket.pnr}
+                  trainName={viewingTicket.train_name}
+                  trainNumber={viewingTicket.train_number}
+                  departureTime={viewingTicket.departure}
+                  arrivalTime={viewingTicket.arrival}
+                  fromStn={viewingTicket.from_stn}
+                  toStn={viewingTicket.to_stn}
+                  date={viewingTicket.travel_date}
+                  classType={viewingTicket.class_type}
+                  passengers={viewingTicket.passengers || []}
+                  status={viewingTicket.status}
+                />
+              </div>
+              <div style={{ padding: "16px 20px" }}>
+                <button
+                  className="btn btn-primary"
+                  style={{ width: "100%", height: "48px" }}
+                  onClick={() => setViewingTicket(null)}
+                >
+                  Close
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
