@@ -3,7 +3,7 @@ import {
   Train, Clock, ChevronRight, AlertCircle, Calendar, 
   CheckCircle2, RefreshCw, X, Search,
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import mqtt from "mqtt";
 import Ticket from "../components/Ticket";
@@ -31,13 +31,35 @@ const Dashboard = () => {
   const [loading,        setLoading]        = useState(true);
   const [notifications,  setNotifications]  = useState<any[]>([]);
   const [selectedBooking,setSelectedBooking]= useState<any>(null);
-  const [pnrSearch,      setPnrSearch]      = useState("");
+  const [searchQuery,    setSearchQuery]    = useState("");
+  const [activeFilter,   setActiveFilter]   = useState("ALL");
   const [searchLoading,  setSearchLoading]  = useState(false);
   const [searchError,    setSearchError]    = useState("");
   const [showConfirm,    setShowConfirm]    = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
   const [cancelTarget,   setCancelTarget]   = useState<any>(null);
   const [paxToCancel,    setPaxToCancel]    = useState<string[]>([]);
   const mqttRef = useRef<any>(null);
+
+  /* ─── Filter Logic ───────────── */
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(b => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch = 
+        b.pnr?.toLowerCase().includes(q) ||
+        b.train_name?.toLowerCase().includes(q) ||
+        b.train_number?.toLowerCase().includes(q) ||
+        b.from_stn?.toLowerCase().includes(q) ||
+        b.to_stn?.toLowerCase().includes(q);
+      
+      const matchesFilter = 
+        activeFilter === "ALL" || 
+        (activeFilter === "CNF" && b.status === "CNF") ||
+        (activeFilter === "WL"  && b.status === "WL") ||
+        (activeFilter === "CANCELLED" && b.status === "CANCELLED");
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [bookings, searchQuery, activeFilter]);
 
   /* ─── Fetch bookings ─────────── */
   const fetchBookings = async () => {
@@ -113,25 +135,33 @@ const Dashboard = () => {
     fetchBookings();
   };
 
-  const handlePnrSearch = async (val: string) => {
-    setPnrSearch(val);
+  const handleSearch = async (val: string) => {
+    setSearchQuery(val);
     setSearchError("");
-    if (val.length < 10) return;
-    setSearchLoading(true);
-    try {
-      const token = await getToken();
-      const res   = await fetch(`${API_URL}/search_booking/${val}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setSelectedBooking(await res.json());
-      } else {
-        setSearchError("No booking found with this PNR.");
+    
+    // Smart heuristic: If 10 digits and no local match, search globally
+    if (val.length === 10 && /^\d+$/.test(val)) {
+      const localMatch = bookings.find(b => b.pnr === val);
+      if (localMatch) return; 
+
+      setSearchLoading(true);
+      try {
+        const token = await getToken();
+        const res   = await fetch(`${API_URL}/pnr_status/${val}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (res.ok && data.booking) {
+          setSelectedBooking(data.booking);
+        } else {
+          setSearchError("No record found for this PNR.");
+        }
+      } catch {
+        setSearchError("Global search failed.");
+      } finally {
+        setSearchLoading(false);
       }
-    } catch {
-      setSearchError("Search failed. Try again.");
     }
-    setSearchLoading(false);
   };
 
   /* ─── Loading screen ─────────── */
@@ -211,7 +241,7 @@ const Dashboard = () => {
               </motion.p>
             </div>
 
-            {/* PNR Search */}
+            {/* Search & Global Lookup */}
             <motion.div
               className="pnr-search-box"
               initial={{ opacity: 0, y: 16 }}
@@ -221,18 +251,16 @@ const Dashboard = () => {
               <Search size={15} className="search-icon" />
               <input
                 type="text"
-                inputMode="numeric"
-                maxLength={10}
-                placeholder="Search PNR…"
-                value={pnrSearch}
-                onChange={e => handlePnrSearch(e.target.value.replace(/\D/g, ""))}
+                placeholder="Search PNR, Train, or Station…"
+                value={searchQuery}
+                onChange={e => handleSearch(e.target.value)}
                 className="pnr-search-input"
               />
               {searchLoading && <div className="search-spinner" />}
-              {pnrSearch && !searchLoading && (
+              {searchQuery && !searchLoading && (
                 <button
                   className="clear-search"
-                  onClick={() => { setPnrSearch(""); setSearchError(""); }}
+                  onClick={() => { setSearchQuery(""); setSearchError(""); }}
                 >
                   <X size={13} />
                 </button>
@@ -245,6 +273,26 @@ const Dashboard = () => {
               <AlertCircle size={13} /> {searchError}
             </motion.div>
           )}
+
+          {/* Quick Filters */}
+          <motion.div 
+            className="filter-chips"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            {['ALL', 'CNF', 'WL', 'CANCELLED'].map(filter => (
+              <button
+                key={filter}
+                className={`filter-chip ${activeFilter === filter ? 'active' : ''}`}
+                onClick={() => setActiveFilter(filter)}
+              >
+                {filter === 'ALL' ? 'All' : 
+                 filter === 'CNF' ? 'Confirmed' : 
+                 filter === 'WL' ? 'Waitlist' : 'Cancelled'}
+              </button>
+            ))}
+          </motion.div>
         </div>
 
         {/* Grid */}
@@ -260,14 +308,28 @@ const Dashboard = () => {
                 Book a Train
               </a>
             </motion.div>
+          ) : filteredBookings.length === 0 ? (
+            <motion.div className="empty-state" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <Search size={40} color="#555" />
+              <h3>No Matches Found</h3>
+              <p>Try searching for a different PNR, Train, or Station.</p>
+              <button className="btn-text" onClick={() => { setSearchQuery(""); setActiveFilter("ALL"); }}>
+                Clear filters
+              </button>
+            </motion.div>
           ) : (
             <motion.div className="booking-list" variants={listVariants} initial="hidden" animate="show">
-              {bookings.map(b => (
-                <motion.div
-                  key={b._id}
-                  variants={cardVariants}
-                  className={`ticket-card${b.status === "CANCELLED" ? " cancelled" : ""}`}
-                >
+              <AnimatePresence mode='popLayout'>
+                {filteredBookings.map(b => (
+                  <motion.div
+                    key={b._id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
+                    variants={cardVariants}
+                    className={`ticket-card${b.status === "CANCELLED" ? " cancelled" : ""}`}
+                  >
                   {/* ── Card Top ── */}
                   <div className="ticket-main">
 
@@ -332,7 +394,8 @@ const Dashboard = () => {
                     </div>
                   </div>
                 </motion.div>
-              ))}
+                ))}
+              </AnimatePresence>
             </motion.div>
           )}
 

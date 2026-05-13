@@ -1898,6 +1898,55 @@ body {
   margin-top: 12px;
 }
 
+
+/* Filter Chips */
+.filter-chips {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  padding: 8px 18px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.filter-chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(30, 111, 43, 0.3);
+}
+
+.chip-count {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 1px 6px;
+  border-radius: 6px;
+  opacity: 0.8;
+}
+
+.filter-chip.active .chip-count {
+  background: rgba(0, 0, 0, 0.2);
+}
+
 /* Responsiveness */
 @media (max-width: 768px) {
   .pnr-search-box {
