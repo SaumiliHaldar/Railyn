@@ -1,6 +1,7 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
 import { Train } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -14,12 +15,12 @@ const Navbar = () => {
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="logo" style={{ fontSize: '24px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <a href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ background: 'white', padding: '8px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
             <Train size={28} color="var(--primary)" />
           </div>
           <span style={{ fontFamily: 'var(--heading)', color: 'var(--text-main)', fontSize: '22px', letterSpacing: '-0.5px', fontWeight: '800' }}>Railyn</span>
-        </a>
+        </Link>
       </div>
       
       <div className="nav-auth">
@@ -30,7 +31,7 @@ const Navbar = () => {
         </SignedOut>
         <SignedIn>
           <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <a href="/dashboard" style={{ color: 'var(--text-main)', textDecoration: 'none', fontSize: '14px', fontWeight: '700', opacity: 0.7 }}>Bookings</a>
+            <Link to="/dashboard" style={{ color: 'var(--text-main)', textDecoration: 'none', fontSize: '14px', fontWeight: '700', opacity: 0.7 }}>Bookings</Link>
             <UserButton afterSignOutUrl="/" />
           </div>
         </SignedIn>
