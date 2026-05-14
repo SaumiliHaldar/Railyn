@@ -219,60 +219,35 @@ const Home = () => {
     <>
       {/* Hero Section */}
       <section className="hero-container">
-        <div className="hero-content">
-          <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="hero-subtitle">Safety | Security | Punctuality</motion.p>
-          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="hero-title">Indian Railways</motion.h1>
-          <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="hero-description">
-            Heartily enjoy every journey through our boundless hospitality. 
-            Through Indian railways, The Lifeline of the Nation.
-          </motion.p>
+        <div className="hero-image-wrapper">
+          <div className="hero-content">
+            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="hero-subtitle">Safety | Security | Punctuality</motion.p>
+            <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="hero-title">welcome to indian railway</motion.h1>
+          </div>
         </div>
 
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} className="widget-container">
-          <div className="widget-tabs">
-            <button className={`tab ${activeTab === 'book' ? 'active' : ''}`} onClick={() => setActiveTab('book')}>
-              <Train size={18} /> Book Ticket
-            </button>
-            <button className={`tab ${activeTab === 'pnr' ? 'active' : ''}`} onClick={() => setActiveTab('pnr')}>
-              <Search size={18} /> PNR Status
-            </button>
-            <button className={`tab ${activeTab === 'charts' ? 'active' : ''}`} onClick={() => setActiveTab('charts')}>
-              <Calendar size={18} /> Charts/Vacancy
-            </button>
-          </div>
-
+        <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="widget-container">
           <div className="search-widget">
+            <div className="widget-tabs">
+              <button className={`tab ${activeTab === 'book' ? 'active' : ''}`} onClick={() => setActiveTab('book')}>
+                <Train size={18} /> Train
+              </button>
+              <button className={`tab ${activeTab === 'pnr' ? 'active' : ''}`} onClick={() => setActiveTab('pnr')}>
+                <Search size={18} /> PNR Status
+              </button>
+              <button className={`tab ${activeTab === 'charts' ? 'active' : ''}`} onClick={() => setActiveTab('charts')}>
+                <Calendar size={18} /> Live Train Status
+              </button>
+            </div>
             {activeTab === 'book' ? (
-              <>
-                <div style={{ display: 'flex', gap: '24px', marginBottom: '24px', borderBottom: '1px solid #eee', paddingBottom: '20px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '800', color: '#888', textTransform: 'uppercase' }}>Quota</span>
-                    <select value={quota} onChange={(e) => setQuota(e.target.value)} style={{ border: 'none', background: 'none', fontWeight: '700', fontSize: '15px', cursor: 'pointer', padding: '0' }}>
-                      <option>General</option>
-                      <option>Ladies</option>
-                      <option>Lower Berth / Sr. Citizen</option>
-                      <option>Tatkal</option>
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '800', color: '#888', textTransform: 'uppercase' }}>Class</span>
-                    <select value={classType} onChange={(e) => setClassType(e.target.value)} style={{ border: 'none', background: 'none', fontWeight: '700', fontSize: '15px', cursor: 'pointer', padding: '0' }}>
-                      <option value="">All Class</option>
-                      <option value="1AC">AC First Class (1A)</option>
-                      <option value="2AC">AC 2 Tier (2A)</option>
-                      <option value="3AC">AC 3 Tier (3A)</option>
-                      <option value="Sleeper">Sleeper (SL)</option>
-                    </select>
-                  </div>
-                </div>
-
+              <div className="search-form-container">
                 <div className="search-form">
                   <div className="input-group" style={{ position: 'relative' }}>
                     <label>From</label>
-                    <MapPin size={16} style={{ position: 'absolute', left: '12px', bottom: '18px', color: '#666' }} />
+                    <MapPin size={18} style={{ position: 'absolute', left: '16px', bottom: '16px', color: 'var(--primary)' }} />
                     <input 
                       type="text" 
-                      placeholder="Enter station" 
+                      placeholder="Select from location" 
                       value={fromStn}
                       onChange={(e) => {
                         setFromStn(e.target.value);
@@ -297,10 +272,10 @@ const Home = () => {
                   
                   <div className="input-group" style={{ position: 'relative' }}>
                     <label>To</label>
-                    <MapPin size={16} style={{ position: 'absolute', left: '12px', bottom: '18px', color: '#666' }} />
+                    <MapPin size={18} style={{ position: 'absolute', left: '16px', bottom: '16px', color: 'var(--primary)' }} />
                     <input 
                       type="text" 
-                      placeholder="Enter station" 
+                      placeholder="Select to location" 
                       value={toStn}
                       onChange={(e) => {
                         setToStn(e.target.value);
@@ -324,18 +299,45 @@ const Home = () => {
                   </div>
 
                   <div className="input-group">
-                    <label>Journey Date</label>
+                    <label>Date</label>
                     <div style={{ position: 'relative' }}>
-                      <Calendar size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
+                      <Calendar size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
                       <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ paddingLeft: '44px' }} />
                     </div>
                   </div>
 
+                  <div className="input-group">
+                    <label>All Class</label>
+                    <select value={classType} onChange={(e) => setClassType(e.target.value)}>
+                      <option value="">Class</option>
+                      <option value="1AC">AC First Class (1A)</option>
+                      <option value="2AC">AC 2 Tier (2A)</option>
+                      <option value="3AC">AC 3 Tier (3A)</option>
+                      <option value="Sleeper">Sleeper (SL)</option>
+                    </select>
+                  </div>
+
                   <button className="search-btn" onClick={handleSearch} disabled={loading}>
-                    {loading ? "Searching..." : <><Search size={20} /> Search Train</>}
+                    {loading ? "..." : <Search size={22} />}
                   </button>
                 </div>
-              </>
+
+                <div style={{ display: 'flex', gap: '20px', marginTop: '20px', paddingLeft: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <select value={quota} onChange={(e) => setQuota(e.target.value)} style={{ border: 'none', background: 'none', fontWeight: '700', fontSize: '14px', color: '#64748b', cursor: 'pointer', padding: '0' }}>
+                      <option>General</option>
+                      <option>Ladies</option>
+                      <option>Tatkal</option>
+                    </select>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#64748b', cursor: 'pointer' }}>
+                    <input type="checkbox" style={{ width: 'auto' }} /> Divyaang Concession
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#64748b', cursor: 'pointer' }}>
+                    <input type="checkbox" style={{ width: 'auto' }} /> Railway Pass Concession
+                  </label>
+                </div>
+              </div>
             ) : activeTab === 'pnr' ? (
               <div className="pnr-search-container" style={{ padding: '20px 0' }}>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>

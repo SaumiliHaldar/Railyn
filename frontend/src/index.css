@@ -1,23 +1,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Premium Forest Palette */
-  --primary: #1E6F2B; /* Deep Forest Green */
-  --primary-glow: rgba(30, 111, 43, 0.3);
-  --secondary: #A4BCA5; /* Sage */
+  /* Professional Forest Light Palette */
+  --primary: #1E6F2B; /* Forest Green */
+  --primary-light: #F0F7F1;
+  --primary-glow: rgba(30, 111, 43, 0.15);
+  --secondary: #2D8A3F; /* Emerald Forest */
   --accent: #fbbf24; /* Gold */
   
-  --bg-dark: #0a0c0a;
-  --bg-card: rgba(255, 255, 255, 0.03);
-  --bg-glass: rgba(255, 255, 255, 0.1);
-  --border-glass: rgba(255, 255, 255, 0.1);
+  --bg-page: #ffffff;
+  --bg-section: #f8fafc;
+  --bg-card: #ffffff;
   
-  --text-main: #E8ECE6; /* Soft Off-white */
-  --text-dim: #A4BCA5;
+  --text-main: #0f172a; /* Slate 900 */
+  --text-muted: #64748b; /* Slate 500 */
+  --text-white: #ffffff;
   
-  --radius-lg: 32px;
+  --radius-xl: 40px;
+  --radius-lg: 24px;
   --radius-md: 16px;
   --radius-sm: 8px;
+  --radius-pill: 100px;
   
   --sans: 'Inter', system-ui, sans-serif;
   --heading: 'Outfit', sans-serif;
@@ -38,37 +41,49 @@ html, body {
 
 body {
   font-family: var(--sans);
-  background-color: var(--bg-dark);
+  background-color: var(--bg-page);
   color: var(--text-main);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scenic Hero Backdrop */
+/* Scenic Hero Redesign */
 .hero-container {
   position: relative;
   width: 100%;
-  height: 100vh;
+  background: var(--bg-page);
+  padding: 100px 5% 140px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
   align-items: center;
-  padding-top: clamp(80px, 10vh, 140px);
-  padding-bottom: 40px;
-  background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url('./assets/forest_railway_hero.png');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
-  overflow: auto;
 }
 
-@media (max-height: 800px) and (min-width: 1024px) {
+.hero-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 65vh;
+  min-height: 480px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('./assets/forest_railway_hero.png');
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 20px 80px rgba(0,0,0,0.15);
+}
+
+@media (max-width: 768px) {
   .hero-container {
-    padding-top: 60px;
+    padding: 80px 16px 0; /* Remove bottom padding for better overlap control */
   }
-  .hero-title {
-    font-size: 52px;
-    margin-bottom: 16px;
+  .hero-image-wrapper {
+    height: 55vh; 
+    min-height: 400px;
+    border-radius: 28px;
+    margin-bottom: 0;
   }
 }
 
@@ -77,12 +92,12 @@ body {
   position: absolute;
   top: 0;
   width: 100%;
-  padding: 24px 5%;
+  padding: 32px 6%;
   display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 1000;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+  background: transparent;
 }
 @media (max-width: 768px) {
   .navbar {
@@ -161,22 +176,26 @@ body {
 
 .hero-subtitle {
   font-family: var(--heading);
-  letter-spacing: 4px;
+  letter-spacing: 6px;
   font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
   text-transform: uppercase;
-  color: var(--secondary);
+  color: #fff;
+  opacity: 0.9;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .hero-title {
   font-family: var(--heading);
-  font-size: clamp(32px, 8vw, 84px);
-  font-weight: 700;
-  line-height: 1.1;
-  margin-bottom: 24px;
-  text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  font-size: clamp(40px, 8vw, 84px); /* Slightly larger */
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  text-transform: lowercase;
+  text-shadow: 0 10px 40px rgba(0,0,0,0.5);
   padding: 0 20px;
+  letter-spacing: -3px; /* Premium feel */
 }
 
 .hero-description {
@@ -187,89 +206,122 @@ body {
   margin: 0 auto 48px;
 }
 
-/* Glassmorphic Search Widget */
+/* IRCTC-Style Search Widget */
 .widget-container {
-  width: 90%;
-  max-width: 1200px;
-  margin-top: 40px;
+  width: 92%;
+  max-width: 1100px;
+  z-index: 20;
+  margin-top: -120px; /* Slightly deeper overlap */
 }
 
 .search-widget {
-  background: #ffffff;
-  border-radius: 0 16px 16px 16px;
-  padding: 32px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-  color: #1a1a1a;
-  border: 1px solid rgba(0,0,0,0.05);
-  min-height: 280px; /* Constant size for all tabs */
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 0; /* Padding handled by internal sections */
+  box-shadow: 0 30px 60px rgba(0,0,0,0.12);
+  color: var(--text-main);
+  border: 1px solid rgba(0,0,0,0.04);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
+
 @media (max-width: 768px) {
-  .search-widget {
-    padding: 24px 16px;
-    border-radius: 12px;
-    min-height: auto; /* Allow natural height on mobile to save space */
+  .widget-container {
+    width: 94%;
+    margin-top: -100px; /* Strong overlap on mobile */
   }
-  .widget-tabs {
-    flex-wrap: wrap;
+  .search-widget {
+    border-radius: 24px;
   }
 }
 
 .widget-tabs {
   display: flex;
-  margin-bottom: -1px;
+  background: #fff;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 0 40px; /* More horizontal padding */
+  gap: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.widget-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  padding: 20px 24px;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-size: 14px;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  white-space: nowrap;
+}
+
+.tab.active {
+  color: var(--primary);
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 3px 3px 0 0;
+}
+
+.tab svg {
+  opacity: 0.7;
+}
+
+.tab.active svg {
+  color: var(--primary);
+  opacity: 1;
 }
 
 @media (max-width: 768px) {
   .widget-tabs {
-    flex-direction: column;
-    width: 100%;
+    padding: 0 10px;
   }
   .tab {
-    width: 100%;
-    border-radius: 12px 12px 0 0 !important;
-    margin-bottom: 4px;
-    padding: 12px 20px;
-  }
-  .search-widget {
-    border-radius: 16px;
-    padding: 24px 16px;
+    padding: 16px 12px;
+    font-size: 13px;
   }
 }
 
-.tab {
-  padding: 16px 32px;
-  border-radius: 12px 12px 0 0;
-  background: rgba(0, 0, 0, 0.4);
-  color: white;
-  font-weight: 700;
-  cursor: pointer;
-  border: none;
-  font-size: 15px;
-  backdrop-filter: blur(15px);
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tab.active {
-  background: #2163D8;
-  color: white;
+.search-form-container {
+  padding: 44px 50px; /* More breathing room */
 }
 
 .search-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) 80px;
+  gap: 16px;
   align-items: flex-end;
 }
 
 @media (max-width: 768px) {
+  .search-form-container {
+    padding: 20px 16px;
+  }
   .search-form {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 12px;
+  }
+  .search-btn {
+    width: 100%;
+    border-radius: var(--radius-md);
   }
 }
 
@@ -315,82 +367,97 @@ body {
 
 .input-group label {
   font-size: 11px;
-  font-weight: 800;
-  color: #888;
+  font-weight: 900; /* Extra bold */
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px; /* More spacing */
+  margin-left: 16px;
+  margin-bottom: 4px;
 }
 
-.input-group input {
-  padding: 12px 14px 12px 40px;
-  border-radius: 10px;
-  border: 1px solid #e0e0e0;
-  background: #fdfdfd;
+.input-group input, .input-group select {
+  padding: 14px 18px 14px 44px;
+  border-radius: var(--radius-pill);
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
   font-size: 14px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--text-main);
   transition: all 0.2s;
   width: 100%;
 }
 
-.input-group input:focus {
+.input-group input:focus, .input-group select:focus {
   outline: none;
-  border-color: #2163D8;
+  border-color: var(--primary);
   background: #fff;
-  box-shadow: 0 0 0 4px rgba(33, 99, 216, 0.1);
+  box-shadow: 0 0 0 4px var(--primary-glow);
 }
 
 .search-btn {
-  background: #2163D8;
+  background: var(--primary);
   color: white;
-  padding: 16px 32px;
-  border-radius: 12px;
-  font-weight: 800;
+  width: 60px; /* Larger */
+  height: 60px;
+  border-radius: 50%;
   border: none;
   cursor: pointer;
-  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  transition: all 0.3s;
-  height: 52px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  box-shadow: 0 8px 25px var(--primary-glow);
 }
 
 .search-btn:hover {
-  background: #1e56bc;
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(33, 99, 216, 0.3);
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 0 10px 20px var(--primary-glow);
 }
 
-/* Suggestions Dropdown */
+.search-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+@media (max-width: 1024px) {
+  .search-btn {
+    width: 100%;
+    border-radius: var(--radius-pill);
+    gap: 12px;
+    height: 52px;
+  }
+}
+
 .suggestions {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 8px);
   left: 0;
   width: 100%;
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
   z-index: 1000;
-  margin-top: 8px;
-  max-height: 300px;
-  overflow-y: auto;
-  border: 1px solid #eee;
+  overflow: hidden;
+  border: 1px solid #f1f5f9;
+  padding: 8px 0;
 }
 
 .suggestion-item {
-  padding: 12px 16px;
+  padding: 14px 20px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
   font-size: 14px;
-  color: #333;
-  text-align: left;
+  color: var(--text-main);
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
 .suggestion-item:hover {
-  background: #f0f7f1;
+  background: var(--primary-light);
   color: var(--primary);
+  padding-left: 24px;
 }
 
 /* Results Section */
@@ -756,6 +823,7 @@ body {
   background:
     linear-gradient(rgba(10,12,10,.82), rgba(8,10,8,.92)),
     url('./assets/forest_railway_hero.png') center/cover fixed;
+  color: white;
 }
 
 .dashboard-container {
@@ -784,11 +852,14 @@ body {
   letter-spacing: -1.5px;
   margin-bottom: 8px;
   line-height: 1;
+  color: white;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.3);
 }
 
 .header-text p {
   font-size: 14px;
-  opacity: .65;
+  color: white;
+  opacity: .75;
 }
 
 /* ── Dashboard Stats Grid ──────────────────────── */
@@ -1005,9 +1076,9 @@ body {
 /* ── Ticket card ───────────────────────────────── */
 .ticket-card {
   position: relative;
-  background: rgba(255,255,255,.03);
-  backdrop-filter: blur(18px);
-  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255,255,255,.05);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,.1);
   border-radius: 18px;
   padding: 24px 28px;
   display: flex;
@@ -1015,7 +1086,7 @@ body {
   gap: 20px;
   transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease,
               background .35s ease;
-  box-shadow: 0 8px 28px rgba(0,0,0,.22);
+  box-shadow: 0 12px 40px rgba(0,0,0,.25);
 
   /* Modern Mask Cutouts: Creates real holes in the card */
   -webkit-mask-image: radial-gradient(circle at 0 73.5%, transparent 10px, black 11px),
@@ -1824,13 +1895,14 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 16px;
   padding: 12px 20px;
   backdrop-filter: blur(20px);
   transition: all 0.3s;
   width: 340px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
 }
 
 .pnr-search-box:focus-within {
@@ -1840,7 +1912,7 @@ body {
 }
 
 .pnr-search-box .search-icon {
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.6);
   flex-shrink: 0;
 }
 
@@ -1857,7 +1929,7 @@ body {
 }
 
 .pnr-search-input::placeholder {
-  color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.5);
   font-size: 13px;
 }
 
@@ -1911,9 +1983,9 @@ body {
 .filter-chip {
   padding: 8px 18px;
   border-radius: 99px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -2217,3 +2289,239 @@ body {
   }
 }
 
+/* ── Senior UI/UX: Dashboard Redesign ──────────────── */
+.dashboard-hero {
+  position: relative;
+  width: 100%;
+  height: 45vh;
+  min-height: 380px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 0 8%;
+  background: #000;
+}
+
+.parallax-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 120%; /* Extra height for parallax movement */
+  background: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.6)), url('./assets/forest_railway_hero.png');
+  background-size: cover;
+  background-position: center;
+  z-index: 1;
+  transform: translateY(0);
+  transition: transform 0.1s ease-out;
+}
+
+.hero-overlay-content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  color: white;
+}
+
+.welcome-text h1 {
+  font-family: var(--heading);
+  font-size: clamp(32px, 5vw, 64px);
+  font-weight: 800;
+  letter-spacing: -2px;
+  line-height: 1;
+  margin-bottom: 12px;
+  text-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.welcome-text p {
+  font-size: 16px;
+  opacity: 0.9;
+  font-weight: 500;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+.trip-stats-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
+  padding: 24px 32px;
+  display: flex;
+  gap: 32px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+  margin-bottom: -40px; /* Overlap effect */
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-item .label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  opacity: 0.6;
+}
+
+.stat-item .value {
+  font-family: var(--heading);
+  font-size: 28px;
+  font-weight: 800;
+}
+
+/* Glassmorphic Shell */
+.dashboard-glass-shell {
+  position: relative;
+  margin-top: -60px;
+  z-index: 20;
+  padding: 0 5% 100px;
+}
+
+.glass-pane {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(40px) saturate(160%);
+  -webkit-backdrop-filter: blur(40px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 32px;
+  padding: 48px;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.08);
+}
+
+/* Premium Boarding Pass Redesign */
+.boarding-pass-card {
+  background: white;
+  border-radius: 24px;
+  border: 1px solid #f1f5f9;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  position: relative;
+}
+
+.boarding-pass-card:hover {
+  transform: translateY(-8px) scale(1.01);
+  box-shadow: 0 30px 60px rgba(0,0,0,0.08);
+  border-color: var(--primary-glow);
+}
+
+.pass-main {
+  padding: 28px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 24px;
+  align-items: center;
+}
+
+.pass-train-info .pnr-label {
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--primary);
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.pass-train-info h3 {
+  font-family: var(--heading);
+  font-size: 22px;
+  font-weight: 800;
+  color: #1e293b;
+  letter-spacing: -0.5px;
+}
+
+.pass-route {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.pass-stn .code {
+  font-family: var(--heading);
+  font-size: 24px;
+  font-weight: 800;
+  display: block;
+  text-align: center;
+}
+
+.pass-stn .city {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  display: block;
+}
+
+.pass-divider {
+  flex: 1;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, #e2e8f0, #e2e8f0 4px, transparent 4px, transparent 8px);
+  position: relative;
+}
+
+.pass-divider .train-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 0 8px;
+  color: var(--primary);
+}
+
+.pass-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: right;
+}
+
+.pass-meta .date {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.pass-meta .time-range {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.pass-footer {
+  background: #f8fafc;
+  padding: 16px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #f1f5f9;
+}
+
+.pass-status-badge {
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pass-status-badge[data-status="CNF"] { background: #dcfce7; color: #166534; }
+.pass-status-badge[data-status="WL"] { background: #fef9c3; color: #854d0e; }
+.pass-status-badge[data-status="CANCELLED"] { background: #fee2e2; color: #991b1b; }
+
+@media (max-width: 1024px) {
+  .pass-main { grid-template-columns: 1fr; text-align: center; gap: 32px; }
+  .pass-meta { text-align: center; }
+  .hero-overlay-content { flex-direction: column; align-items: flex-start; gap: 40px; }
+  .trip-stats-card { width: 100%; margin-bottom: 0; }
+}
