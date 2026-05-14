@@ -1,6 +1,6 @@
 import { useAuth, useUser } from "@clerk/clerk-react";
 import {
-  Train, Clock, ChevronRight, AlertCircle, Calendar, 
+  Train, AlertCircle, 
   CheckCircle2, RefreshCw, X, Search,
 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -15,14 +15,13 @@ const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
 /* ─── Framer variants ────────────────────────────────────────── */
 const listVariants = {
   hidden: { opacity: 0 },
-  show:   { opacity: 1, transition: { staggerChildren: 0.09 } },
+  show:   { opacity: 1, transition: { staggerChildren: 0.08 } },
 };
 const cardVariants = {
-  hidden: { opacity: 0, y: 24, scale: 0.97 },
-  show:   { opacity: 1, y: 0,  scale: 1    },
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0  },
 };
 
-/* ─── Component ──────────────────────────────────────────────── */
 const Dashboard = () => {
   const { getToken }  = useAuth();
   const { user }      = useUser();
@@ -40,7 +39,6 @@ const Dashboard = () => {
   const [paxToCancel,    setPaxToCancel]    = useState<string[]>([]);
   const mqttRef = useRef<any>(null);
 
-  /* ─── Filter Logic ───────────── */
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
       const q = searchQuery.toLowerCase();
@@ -61,7 +59,6 @@ const Dashboard = () => {
     });
   }, [bookings, searchQuery, activeFilter]);
 
-  /* ─── Fetch bookings ─────────── */
   const fetchBookings = async () => {
     try {
       const token = await getToken();
@@ -79,15 +76,11 @@ const Dashboard = () => {
 
   useEffect(() => { if (user) fetchBookings(); }, [user]);
 
-  /* ─── MQTT ───────────────────── */
   useEffect(() => {
     if (!user) return;
     const client = mqtt.connect(MQTT_URL);
     mqttRef.current = client;
-
-    client.on("connect", () => {
-      client.subscribe(`railyn/user/${user.id}/#`);
-    });
+    client.on("connect", () => { client.subscribe(`railyn/user/${user.id}/#`); });
     client.on("message", (topic, msg) => {
       const payload = JSON.parse(msg.toString());
       setNotifications(prev => [...prev, { ...payload, id: Date.now() }]);
@@ -96,27 +89,22 @@ const Dashboard = () => {
     return () => { client.end(); };
   }, [user]);
 
-  /* ─── Actions ────────────────── */
   const handleCancelInit = (booking: any) => {
     setCancelTarget(booking);
-    setPaxToCancel([]); // Reset selection
+    setPaxToCancel([]);
   };
 
   const handleConfirmCancel = async () => {
-    if (paxToCancel.length === 0) return alert("Please select at least one passenger to cancel.");
-    
+    if (paxToCancel.length === 0) return;
     setShowConfirm({
-      title: "Final Confirmation",
-      message: `Are you sure you want to cancel ${paxToCancel.length} passenger(s)? This action cannot be undone.`,
+      title: "Confirm Cancellation",
+      message: `Cancel ${paxToCancel.length} passenger(s)? This cannot be undone.`,
       onConfirm: async () => {
         const token = await getToken();
         await fetch(`${API_URL}/cancel_tkt`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ 
-            booking_id: cancelTarget._id,
-            passenger_names: paxToCancel
-          }),
+          body: JSON.stringify({ booking_id: cancelTarget._id, passenger_names: paxToCancel }),
         });
         setCancelTarget(null);
         fetchBookings();
@@ -138,12 +126,8 @@ const Dashboard = () => {
   const handleSearch = async (val: string) => {
     setSearchQuery(val);
     setSearchError("");
-    
-    // Smart heuristic: If 10 digits and no local match, search globally
     if (val.length === 10 && /^\d+$/.test(val)) {
-      const localMatch = bookings.find(b => b.pnr === val);
-      if (localMatch) return; 
-
+      if (bookings.find(b => b.pnr === val)) return; 
       setSearchLoading(true);
       try {
         const token = await getToken();
@@ -151,64 +135,68 @@ const Dashboard = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-        if (res.ok && data.booking) {
-          setSelectedBooking(data.booking);
-        } else {
-          setSearchError("No record found for this PNR.");
-        }
+        if (res.ok && data.booking) setSelectedBooking(data.booking);
+        else setSearchError("PNR not found.");
       } catch {
-        setSearchError("Global search failed.");
+        setSearchError("Search failed.");
       } finally {
         setSearchLoading(false);
       }
     }
   };
 
-  /* ─── Loading screen ─────────── */
   if (loading) return (
-    <div className="loading-container">
-      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
-        <Train size={48} color="#1E6F2B" />
-      </motion.div>
-      <p>Fetching your tickets…</p>
+    <div className="dashboard-wrapper">
+      <section className="hero-container">
+        <div className="hero-image-wrapper" style={{ background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="hero-content">
+            <div className="skeleton-box skeleton-header" style={{ margin: '0 auto 12px' }} />
+            <div className="skeleton-box skeleton-line" style={{ width: '120px', margin: '0 auto' }} />
+          </div>
+        </div>
+      </section>
+      <div className="dashboard-container">
+        <div className="dashboard-header">
+           <div className="skeleton-box skeleton-header" style={{ marginBottom: 12 }} />
+           <div className="skeleton-box skeleton-line" style={{ width: '40%' }} />
+        </div>
+        <div className="booking-list">
+          {[1,2,3].map(i => (
+            <div key={i} className="skeleton-card">
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div className="skeleton-box skeleton-circle" />
+                <div style={{ flex: 1 }}>
+                  <div className="skeleton-box skeleton-header" style={{ width: '30%', marginBottom: 8 }} />
+                  <div className="skeleton-box skeleton-line" style={{ width: '50%' }} />
+                </div>
+              </div>
+              <div className="skeleton-box skeleton-line" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 
   const activeCount = bookings.filter(b => b.status !== "CANCELLED").length;
 
-  /* ─── Render ─────────────────── */
   return (
     <div className="dashboard-wrapper">
-
-      {/* ── MQTT Toast Stack ────────────────────────────────── */}
       <div className="notification-stack">
         <AnimatePresence>
           {notifications.map(n => (
-            <motion.div
-              key={n.id}
-              initial={{ opacity: 0, x: 60, scale: 0.92 }}
-              animate={{ opacity: 1, x: 0,  scale: 1     }}
-              exit={{    opacity: 0, scale: 0.6            }}
-              className="smart-toast"
-            >
+            <motion.div key={n.id} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.8 }} className="smart-toast">
               <div className="toast-header">
-                {n.action_prompt
-                  ? <AlertCircle size={18} color="#fbbf24" />
-                  : <CheckCircle2 size={18} color="#4ade80" />}
+                {n.action_prompt ? <AlertCircle size={18} color="#fbbf24" /> : <CheckCircle2 size={18} color="#4ade80" />}
                 <span>Smart Assist</span>
-                <button onClick={() => setNotifications(p => p.filter(x => x.id !== n.id))}>
-                  <X size={14} />
-                </button>
+                <button onClick={() => setNotifications(p => p.filter(x => x.id !== n.id))}><X size={14} /></button>
               </div>
               <div className="toast-body">
                 <h4>{n.title}</h4>
                 <p>{n.message}</p>
                 {n.action_prompt && (
                   <div className="toast-actions">
-                    <p className="prompt">{n.action_prompt}</p>
-                    <button className="btn-swap" onClick={() => handleSwap(n)}>
-                      <RefreshCw size={13} /> Swap Now
-                    </button>
+                    <button className="btn-swap" onClick={() => handleSwap(n)}><RefreshCw size={13} /> Swap Now</button>
                   </div>
                 )}
               </div>
@@ -217,351 +205,167 @@ const Dashboard = () => {
         </AnimatePresence>
       </div>
 
-      {/* ── Main Container ──────────────────────────────────── */}
-      <div className="dashboard-container">
+      <section className="hero-container">
+        <div className="hero-image-wrapper" style={{ backgroundImage: "linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.4)), url('/src/assets/dashboard_hero.png')" }}>
+          <div className="hero-content">
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hero-subtitle">Your Travel Dashboard</motion.p>
+            <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="hero-title">Welcome back, {user?.firstName}</motion.h1>
+          </div>
+        </div>
+      </section>
 
-        {/* Header */}
+      <div className="dashboard-container">
         <div className="dashboard-header">
-          <div className="header-row">
+          <div className="header-row" style={{ alignItems: 'center' }}>
             <div className="header-text">
-              <motion.h1
-                initial={{ opacity: 0, y: -18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.55 }}
-              >
-                My Dashboard
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.65 }}
-                transition={{ delay: 0.18 }}
-              >
-                Welcome back, <strong>{user?.firstName}</strong>.
-                You have <strong>{activeCount}</strong> active booking{activeCount !== 1 ? "s" : ""}.
-              </motion.p>
+              <motion.h2 initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="train-title">
+                {activeCount} Active Trip{activeCount !== 1 ? "s" : ""}
+              </motion.h2>
             </div>
 
-            {/* Search & Global Lookup */}
-            <motion.div
-              className="pnr-search-box"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.28 }}
-            >
-              <Search size={15} className="search-icon" />
+            <motion.div className="pnr-search-box" style={{ width: '360px', background: 'white' }}>
+              <Search size={16} style={{ color: '#94a3b8' }} />
               <input
                 type="text"
-                placeholder="Search PNR, Train, or Station…"
+                placeholder="Search trip..."
                 value={searchQuery}
                 onChange={e => handleSearch(e.target.value)}
                 className="pnr-search-input"
+                style={{ color: 'var(--text-main)' }}
               />
               {searchLoading && <div className="search-spinner" />}
-              {searchQuery && !searchLoading && (
-                <button
-                  className="clear-search"
-                  onClick={() => { setSearchQuery(""); setSearchError(""); }}
-                >
-                  <X size={13} />
-                </button>
-              )}
+              {searchQuery && !searchLoading && <X size={14} onClick={() => setSearchQuery("")} style={{ cursor: 'pointer', color: '#94a3b8' }} />}
             </motion.div>
           </div>
 
           {searchError && (
-            <motion.div className="search-error" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <AlertCircle size={13} /> {searchError}
+            <motion.div className="search-error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginTop: 12 }}>
+              <AlertCircle size={14} /> {searchError}
             </motion.div>
           )}
 
-          {/* Quick Filters */}
-          <motion.div 
-            className="filter-chips"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            {['ALL', 'CNF', 'WL', 'CANCELLED'].map(filter => (
-              <button
-                key={filter}
-                className={`filter-chip ${activeFilter === filter ? 'active' : ''}`}
-                onClick={() => setActiveFilter(filter)}
-              >
-                {filter === 'ALL' ? 'All' : 
-                 filter === 'CNF' ? 'Confirmed' : 
-                 filter === 'WL' ? 'Waitlist' : 'Cancelled'}
-              </button>
-            ))}
-          </motion.div>
+          <div className="filter-chips">
+            {['Everything', 'Confirmed', 'Waiting', 'Cancelled'].map((label, idx) => {
+              const val = ['ALL', 'CNF', 'WL', 'CANCELLED'][idx];
+              return (
+                <button
+                  key={val}
+                  className={`filter-chip ${activeFilter === val ? 'active' : ''}`}
+                  onClick={() => setActiveFilter(val)}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Grid */}
-        <div className="dashboard-grid">
-
-          {/* ── Booking List ────────────────────────────────── */}
-          {bookings.length === 0 ? (
-            <motion.div className="empty-state" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <AlertCircle size={56} color="#555" />
-              <h3>No Bookings Yet</h3>
-              <p>Ready to explore India? Book your first train now.</p>
-              <a href="/" className="btn btn-primary" style={{ marginTop: 20, textDecoration: "none", display: "inline-block" }}>
-                Book a Train
-              </a>
-            </motion.div>
-          ) : filteredBookings.length === 0 ? (
-            <motion.div className="empty-state" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Search size={40} color="#555" />
-              <h3>No Matches Found</h3>
-              <p>Try searching for a different PNR, Train, or Station.</p>
-              <button className="btn-text" onClick={() => { setSearchQuery(""); setActiveFilter("ALL"); }}>
-                Clear filters
-              </button>
-            </motion.div>
+        <div className="booking-list">
+          {filteredBookings.length === 0 ? (
+            <div className="empty-state">
+              <Search size={48} color="#e2e8f0" />
+              <h3>No results</h3>
+            </div>
           ) : (
-            <motion.div className="booking-list" variants={listVariants} initial="hidden" animate="show">
+            <motion.div variants={listVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <AnimatePresence mode='popLayout'>
                 {filteredBookings.map(b => (
-                  <motion.div
-                    key={b._id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
-                    variants={cardVariants}
-                    className={`ticket-card${b.status === "CANCELLED" ? " cancelled" : ""}`}
-                  >
-                  {/* ── Card Top ── */}
-                  <div className="ticket-main">
-
-                    {/* Train info column */}
-                    <div className="train-info">
-                      <span className="pnr">PNR: {b.pnr}</span>
-                      <div className="train-name-group">
-                        <h3>{b.train_name}</h3>
-                        <div className="train-num-row">
-                          <span className="label-tiny">Train No.</span> {b.train_number}
+                  <motion.div key={b._id} layout variants={cardVariants} exit={{ opacity: 0, scale: 0.98 }} className={`ticket-card ${b.status === "CANCELLED" ? "cancelled" : ""}`}>
+                    <div className="ticket-main">
+                      <div className="train-info">
+                        <span className="pnr-label">{b.pnr}</span>
+                        <div>
+                          <h3 className="train-title">{b.train_name}</h3>
+                          <span className="train-subtitle">#{b.train_number}</span>
                         </div>
+                        <div className="status-badge" data-status={b.status}>{b.status}</div>
                       </div>
-                      <div className="status-badge" data-status={b.status}>
-                        {b.status}{b.wl_position ? ` (${b.wl_position})` : ""}
+
+                      <div className="route-info">
+                        <span className="route-code">{b.from_stn}</span>
+                        <div className="divider"><div className="line" /><Train size={14} /><div className="line" /></div>
+                        <span className="route-code">{b.to_stn}</span>
+                      </div>
+
+                      <div className="passenger-brief">
+                        <div className="ticket-meta-item">{formatDate(b.travel_date)}</div>
+                        <div className="ticket-meta-sub">{b.departure} → {b.arrival}</div>
                       </div>
                     </div>
 
-                    {/* Route visual */}
-                    <div className="route-info">
-                      <div className="stn">
-                        <span className="code">{b.from_stn}</span>
-                        <span className="label">Origin</span>
-                      </div>
-                      <div className="divider">
-                        <div className="line" />
-                        <Train size={16} />
-                        <div className="line" />
-                      </div>
-                      <div className="stn">
-                        <span className="code">{b.to_stn}</span>
-                        <span className="label">Destination</span>
+                    <div className="ticket-footer" style={{ border: 'none', padding: 0 }}>
+                      <span className="ticket-meta-sub" style={{ fontWeight: 800 }}>{b.passengers?.length || 0} Pax · {b.class_type}</span>
+                      <div className="card-actions">
+                        {b.status !== "CANCELLED" && <button className="btn-cancel" style={{ background: 'none', border: 'none', padding: 0, fontSize: '13px' }} onClick={() => handleCancelInit(b)}>Cancel</button>}
+                        <button className="btn-text" style={{ color: 'var(--primary)', fontWeight: 800, opacity: 1 }} onClick={() => setSelectedBooking(b)}>Details</button>
                       </div>
                     </div>
-
-                    {/* Meta column */}
-                    <div className="passenger-brief">
-                      <div className="item">
-                        <Calendar size={13} />
-                        <span>{formatDate(b.travel_date)}</span>
-                      </div>
-                      <div className="item">
-                        <Clock size={13} />
-                        <span>{b.departure} → {b.arrival}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── Card Bottom ── */}
-                  <div className="ticket-footer">
-                    <span className="passenger-label">
-                      {b.passengers?.length || 0} {b.passengers?.length === 1 ? 'Passenger' : 'Passengers'} · {b.class_type}
-                    </span>
-                    <div className="card-actions">
-                      {b.status !== "CANCELLED" && (
-                        <button className="btn-cancel" onClick={() => handleCancelInit(b)}>
-                          Cancel
-                        </button>
-                      )}
-                      <button className="btn-text" onClick={() => setSelectedBooking(b)}>
-                        Details <ChevronRight size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
                 ))}
               </AnimatePresence>
             </motion.div>
           )}
-
-          {/* Professional Confirmation Modal */}
-          <AnimatePresence>
-            {showConfirm && (
-              <div className="modal-overlay" style={{ zIndex: 3000 }} onClick={() => setShowConfirm(null)}>
-                <motion.div 
-                  className="confirm-dialog-card"
-                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                  onClick={e => e.stopPropagation()}
-                >
-                  <div className="dialog-header">
-                    <AlertCircle size={24} className="dialog-icon" />
-                    <h3>{showConfirm.title}</h3>
-                  </div>
-                  <p className="dialog-message">{showConfirm.message}</p>
-                  <div className="dialog-actions">
-                    <button className="btn-secondary-outline" onClick={() => setShowConfirm(null)}>
-                      No, Cancel
-                    </button>
-                    <button 
-                      className="btn-danger-confirm" 
-                      onClick={() => {
-                        showConfirm.onConfirm();
-                        setShowConfirm(null);
-                      }}
-                    >
-                      Yes, Proceed
-                    </button>
-                  </div>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
 
-      {/* ── Ticket Detail Modal ──────────────────────────────── */}
+      {/* Confirmation Modal */}
       <AnimatePresence>
-        {selectedBooking && (
-          <div className="modal-overlay" onClick={() => setSelectedBooking(null)}>
-            <motion.div
-              className="booking-modal"
-              style={{ background: 'transparent', padding: 0, maxWidth: 520, boxShadow: 'none' }}
-              initial={{ opacity: 0, scale: 0.88, y: 24 }}
-              animate={{ opacity: 1, scale: 1,    y: 0  }}
-              exit={{    opacity: 0, scale: 0.88, y: 24 }}
-              onClick={e => e.stopPropagation()}
-            >
-
-              <div className="ticket-wrapper">
-                <Ticket
-                  pnr={selectedBooking.pnr}
-                  trainName={selectedBooking.train_name}
-                  trainNumber={selectedBooking.train_number}
-                  departureTime={selectedBooking.departure}
-                  arrivalTime={selectedBooking.arrival}
-                  fromStn={selectedBooking.from_stn}
-                  toStn={selectedBooking.to_stn}
-                  date={selectedBooking.travel_date}
-                  classType={selectedBooking.class_type}
-                  passengers={selectedBooking.passengers || [{
-                    name: selectedBooking.passenger_name,
-                    age: selectedBooking.passenger_age,
-                    coach: selectedBooking.coach,
-                    seat: selectedBooking.seat,
-                    status: selectedBooking.status
-                  }]}
-                  status={selectedBooking.status}
-                />
-              </div>
-
-              <div style={{ padding: "16px 20px" }}>
-                <button
-                  className="btn btn-primary"
-                  style={{ width: "100%" }}
-                  onClick={() => setSelectedBooking(null)}
-                >
-                  Close
-                </button>
+        {showConfirm && (
+          <div className="modal-overlay" onClick={() => setShowConfirm(null)}>
+            <motion.div className="confirm-dialog-card" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} onClick={e => e.stopPropagation()}>
+              <h3>{showConfirm.title}</h3>
+              <p>{showConfirm.message}</p>
+              <div className="dialog-actions">
+                <button className="btn btn-outline" onClick={() => setShowConfirm(null)}>Dismiss</button>
+                <button className="btn btn-primary" onClick={() => { showConfirm.onConfirm(); setShowConfirm(null); }}>Proceed</button>
               </div>
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
 
-        {/* ── Cancellation Selection Modal ── */}
+      {/* Details Modal */}
+      <AnimatePresence>
+        {selectedBooking && (
+          <div className="modal-overlay" onClick={() => setSelectedBooking(null)}>
+            <motion.div className="booking-modal" style={{ background: 'transparent', boxShadow: 'none', padding: 0 }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} onClick={e => e.stopPropagation()}>
+              <Ticket 
+                pnr={selectedBooking.pnr}
+                trainName={selectedBooking.train_name}
+                trainNumber={selectedBooking.train_number}
+                fromStn={selectedBooking.from_stn}
+                toStn={selectedBooking.to_stn}
+                departureTime={selectedBooking.departure}
+                arrivalTime={selectedBooking.arrival}
+                date={selectedBooking.travel_date}
+                classType={selectedBooking.class_type}
+                status={selectedBooking.status}
+                passengers={selectedBooking.passengers || []}
+              />
+              <button className="btn btn-primary" style={{ width: '100%', marginTop: 16 }} onClick={() => setSelectedBooking(null)}>Close</button>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Cancellation Selection */}
         {cancelTarget && (
           <div className="modal-overlay" onClick={() => setCancelTarget(null)}>
-            <motion.div 
-              className="booking-modal"
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              onClick={e => e.stopPropagation()}
-              style={{ maxWidth: 450, padding: '24px' }}
-            >
-              <div className="modal-header" style={{ border: 'none', padding: 0, marginBottom: 20 }}>
-                <div>
-                  <h2 style={{ fontSize: '1.25rem', color: '#111827' }}>Cancel Passengers</h2>
-                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Select members to remove from PNR {cancelTarget.pnr}</p>
-                </div>
-                <button className="close-btn" onClick={() => setCancelTarget(null)} style={{ top: 0, right: 0 }}><X size={20}/></button>
+            <motion.div className="booking-modal" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} onClick={e => e.stopPropagation()} style={{ padding: 24 }}>
+              <h3>Cancel Trip</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '20px 0' }}>
+                {(cancelTarget.passengers || []).map((p: any) => (
+                  <label key={p.name} style={{ display: 'flex', justifyContent: 'space-between', padding: 12, border: '1px solid #eee', borderRadius: 12, opacity: p.status === 'CAN' ? 0.5 : 1 }}>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      <input type="checkbox" disabled={p.status === 'CAN'} checked={paxToCancel.includes(p.name)} onChange={() => setPaxToCancel(prev => prev.includes(p.name) ? prev.filter(n => n !== p.name) : [...prev, p.name])} />
+                      <span style={{ fontWeight: 700 }}>{p.name}</span>
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: 800 }}>{p.status}</span>
+                  </label>
+                ))}
               </div>
-
-              <div className="pax-cancel-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-                {(cancelTarget.passengers || []).map((p: any, idx: number) => {
-                  const isAlreadyCan = p.status === 'CAN';
-                  const isSelected = paxToCancel.includes(p.name);
-                  
-                  return (
-                    <label key={idx} style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'space-between',
-                      padding: '12px 16px',
-                      borderRadius: '12px',
-                      border: `1px solid ${isSelected ? '#1E6F2B' : '#e5e7eb'}`,
-                      background: isAlreadyCan ? '#f9fafb' : (isSelected ? '#f0fdf4' : 'white'),
-                      cursor: isAlreadyCan ? 'not-allowed' : 'pointer',
-                      opacity: isAlreadyCan ? 0.6 : 1,
-                      transition: 'all 0.2s'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <input 
-                          type="checkbox" 
-                          disabled={isAlreadyCan}
-                          checked={isSelected}
-                          onChange={() => {
-                            if (isSelected) setPaxToCancel(prev => prev.filter(n => n !== p.name));
-                            else setPaxToCancel(prev => [...prev, p.name]);
-                          }}
-                          style={{ accentColor: '#1E6F2B', width: 18, height: 18 }}
-                        />
-                        <div>
-                          <p style={{ fontWeight: 600, fontSize: '0.95rem', margin: 0 }}>{p.name}</p>
-                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Seat {p.coach}-{p.seat}</span>
-                        </div>
-                      </div>
-                      <span style={{ 
-                        fontSize: '0.75rem', 
-                        fontWeight: 700, 
-                        color: isAlreadyCan ? '#ef4444' : '#10b981',
-                        background: isAlreadyCan ? '#fef2f2' : '#ecfdf5',
-                        padding: '2px 8px',
-                        borderRadius: '99px'
-                      }}>
-                        {p.status}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setCancelTarget(null)}>Dismiss</button>
-                <button 
-                  className="btn btn-primary" 
-                  style={{ flex: 1, background: '#ef4444', borderColor: '#ef4444' }}
-                  onClick={handleConfirmCancel}
-                  disabled={paxToCancel.length === 0}
-                >
-                  Cancel Selected
-                </button>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button className="btn btn-outline" onClick={() => setCancelTarget(null)} style={{ flex: 1 }}>Back</button>
+                <button className="btn btn-primary" style={{ flex: 1, background: '#ef4444', borderColor: '#ef4444' }} onClick={handleConfirmCancel} disabled={paxToCancel.length === 0}>Cancel Selected</button>
               </div>
             </motion.div>
           </div>

@@ -7,6 +7,67 @@ import { formatDate } from "../utils/dateUtils";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+interface Station {
+  code: string;
+  name: string;
+}
+
+interface TrainData {
+  train_number: string;
+  train_name: string;
+  type: string;
+  departure: string;
+  arrival: string;
+  duration_h: number;
+  duration_m: number;
+  seat_inventory: Record<string, number>;
+  fares: Record<string, number>;
+  wl_probabilities?: Record<string, string>;
+}
+
+interface BookingData {
+  _id?: string;
+  pnr: string;
+  train_number: string;
+  train_name: string;
+  from_stn: string;
+  to_stn: string;
+  departure: string;
+  arrival: string;
+  travel_date: string;
+  class_type: string;
+  status: string;
+  passengers: Array<{
+    name: string;
+    age: number;
+    gender: string;
+    coach?: string;
+    seat?: number;
+    status?: string;
+  }>;
+}
+
+interface ChartResult {
+  train_number: string;
+  train: string;
+  coaches: Array<{
+    coach: string;
+    class_name: string;
+    available: number;
+    seats: Array<{
+      number: number;
+      berth_type: string;
+      is_occupied: boolean;
+    }>;
+  }>;
+}
+
+interface Passenger {
+  name: string;
+  age: string;
+  gender: string;
+}
+
 const Home = () => {
   const [activeTab, setActiveTab] = useState("book");
   const { getToken } = useAuth();
@@ -18,27 +79,27 @@ const Home = () => {
   const [classType, setClassType] = useState("");
   const [quota, setQuota] = useState("General");
   
-  const [fromSuggestions, setFromSuggestions] = useState([]);
-  const [toSuggestions, setToSuggestions] = useState([]);
-  const [trains, setTrains] = useState([]);
+  const [fromSuggestions, setFromSuggestions] = useState<Station[]>([]);
+  const [toSuggestions, setToSuggestions] = useState<Station[]>([]);
+  const [trains, setTrains] = useState<TrainData[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   
-  const [selectedTrain, setSelectedTrain] = useState(null);
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [passengers, setPassengers] = useState([{ name: "", age: "", gender: "Male" }]);
-  const [bookingSuccess, setBookingSuccess] = useState(null);
+  const [selectedTrain, setSelectedTrain] = useState<TrainData | null>(null);
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [passengers, setPassengers] = useState<Passenger[]>([{ name: "", age: "", gender: "Male" }]);
+  const [bookingSuccess, setBookingSuccess] = useState<BookingData | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [pnrInput, setPnrInput] = useState("");
-  const [pnrResult, setPnrResult] = useState(null);
+  const [pnrResult, setPnrResult] = useState<BookingData | null>(null);
   const [pnrLoading, setPnrLoading] = useState(false);
   const [chartTrain, setChartTrain] = useState("");
-  const [chartResult, setChartResult] = useState(null);
+  const [chartResult, setChartResult] = useState<ChartResult | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
-  const [selectedCoach, setSelectedCoach] = useState(null);
+  const [selectedCoach, setSelectedCoach] = useState<any | null>(null);
   const [chartDate, setChartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [viewingTicket, setViewingTicket] = useState(null);
+  const [viewingTicket, setViewingTicket] = useState<BookingData | null>(null);
 
   useEffect(() => {
     const registerUser = async () => {
@@ -79,7 +140,7 @@ const Home = () => {
     }
   }, [user]);
 
-  const handleStationSearch = async (query, setSuggestions) => {
+  const handleStationSearch = async (query: string, setSuggestions: React.Dispatch<React.SetStateAction<Station[]>>) => {
     if (query.length < 2) {
       setSuggestions([]);
       return;
@@ -124,6 +185,8 @@ const Home = () => {
     
     try {
       const token = await getToken();
+      if (!selectedTrain || !selectedClass) return;
+      
       const totalFare = (selectedTrain.fares[selectedClass] || 0) * passengers.length;
       const res = await fetch(`${API_URL}/book_tkt`, {
         method: 'POST',
@@ -154,7 +217,7 @@ const Home = () => {
       setBookingSuccess(data);
 
       // Local UI update: Decrement the seat count by number of passengers
-      if (data.status === "CNF") {
+      if (data.status === "CNF" && selectedTrain && selectedClass) {
         const numPax = passengers.length;
         setTrains(prevTrains => prevTrains.map(t => {
           if (t.train_number === selectedTrain.train_number) {
@@ -449,90 +512,72 @@ const Home = () => {
                       <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
                         {chartResult.train_number} - {chartResult.train} | {formatDate(chartDate)}
                       </h4>
-                      <div style={{ background: '#dcfce7', color: '#166534', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700 }}>
-                        {chartResult.coaches.reduce((acc, curr) => acc + curr.available, 0)} Total Vacant
+                      <div style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>
+                        {chartResult.coaches.reduce((acc: number, curr: any) => acc + curr.available, 0)} Total Vacant
                       </div>
                     </div>
 
-                    {/* Coach Selector */}
-                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '24px', paddingBottom: '8px' }}>
-                      {chartResult.coaches.map((c, i) => (
-                        <button 
-                          key={i}
-                          onClick={() => setSelectedCoach(c)}
-                          style={{ 
-                            padding: '10px 16px', 
-                            borderRadius: '12px', 
-                            border: '1px solid',
-                            borderColor: selectedCoach?.coach === c.coach ? '#22c55e' : '#e2e8f0',
-                            background: selectedCoach?.coach === c.coach ? '#f0fdf4' : '#fff',
-                            color: selectedCoach?.coach === c.coach ? '#166534' : '#64748b',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          {c.coach}
-                          <div style={{ fontSize: '10px', opacity: 0.8 }}>{c.available} Vacant</div>
-                        </button>
-                      ))}
-                    </div>
+                    {chartResult && (
+                      <div className="coaches-row">
+                        {chartResult.coaches.map((c: any) => (
+                          <button
+                            key={c.coach}
+                            className="coach-chip"
+                            style={{
+                              borderColor: selectedCoach?.coach === c.coach ? '#22c55e' : '#e2e8f0',
+                              background: selectedCoach?.coach === c.coach ? '#f0fdf4' : '#fff',
+                              color: selectedCoach?.coach === c.coach ? '#166534' : '#64748b',
+                            }}
+                            onClick={() => setSelectedCoach(c)}
+                          >
+                            <div className="c-name">{c.coach}</div>
+                            <div className="c-avail">{c.available}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
-                    {/* Realistic Seat Map */}
                     {selectedCoach && (
-                      <div className="realistic-coach-map">
-                        <div className="seat-legend">
-                          <div className="legend-item">
-                            <div className="legend-box vacant"></div> Vacant
-                          </div>
-                          <div className="legend-item">
-                            <div className="legend-box occupied"></div> Occupied
-                          </div>
-                        </div>
-
-                        <div className="compartment-grid">
+                      <div className="seat-map-wrapper">
+                        <div className="seat-grid">
                           {Array.from({ 
-                            length: Math.ceil(selectedCoach.seats.length / (selectedCoach.class_name === '2AC' ? 6 : 8)) 
+                            length: Math.ceil(selectedCoach.seats.length / (selectedCoach.class_name === '2AC' ? 6 : 8))
                           }).map((_, bayIdx) => {
                             const baySize = selectedCoach.class_name === '2AC' ? 6 : 8;
                             const mainSize = selectedCoach.class_name === '2AC' ? 4 : 6;
                             const baySeats = selectedCoach.seats.slice(bayIdx * baySize, bayIdx * baySize + baySize);
                             
                             return (
-                              <React.Fragment key={bayIdx}>
+                              <div key={bayIdx} className="bay">
+                                <div className="bay-label">Bay {bayIdx + 1}</div>
                                 <div className={`bay-section ${selectedCoach.class_name === '2AC' ? 'ac2' : ''}`}>
-                                  {/* Main Bay (Left Side) */}
                                   <div className={`main-bay ${selectedCoach.class_name === '2AC' ? 'ac2' : ''}`}>
-                                    {baySeats.slice(0, mainSize).map(s => (
-                                      <motion.div 
-                                        whileHover={{ scale: 1.05 }}
-                                        key={s.num} 
-                                        className={`seat-unit ${s.is_occupied ? 'occupied' : 'vacant'}`}
+                                    {baySeats.slice(0, mainSize).map((s: any) => (
+                                      <div 
+                                        key={s.number} 
+                                        className={`seat-box ${s.is_occupied ? 'occupied' : 'available'}`}
+                                        title={`${s.berth_type} - ${s.is_occupied ? 'Occupied' : 'Vacant'}`}
                                       >
-                                        <span className="seat-num">{s.num}</span>
-                                        <span className="seat-type">{s.type}</span>
-                                      </motion.div>
+                                        <span className="s-num">{s.number}</span>
+                                        <span className="s-type">{s.berth_type}</span>
+                                      </div>
                                     ))}
                                   </div>
 
-                                  {/* Aisle */}
-                                  <div className="coach-aisle">AISLE</div>
-
-                                  {/* Side Bay (Right Side) */}
                                   <div className="side-bay">
-                                    {baySeats.slice(mainSize).map(s => (
-                                      <motion.div 
-                                        whileHover={{ scale: 1.05 }}
-                                        key={s.num} 
-                                        className={`seat-unit ${s.is_occupied ? 'occupied' : 'vacant'}`}
+                                    {baySeats.slice(mainSize).map((s: any) => (
+                                      <div 
+                                        key={s.number} 
+                                        className={`seat-box ${s.is_occupied ? 'occupied' : 'available'}`}
+                                        title={`${s.berth_type} - ${s.is_occupied ? 'Occupied' : 'Vacant'}`}
                                       >
-                                        <span className="seat-num">{s.num}</span>
-                                        <span className="seat-type">{s.type}</span>
-                                      </motion.div>
+                                        <span className="s-num">{s.number}</span>
+                                        <span className="s-type">{s.berth_type}</span>
+                                      </div>
                                     ))}
                                   </div>
                                 </div>
-                              </React.Fragment>
+                              </div>
                             );
                           })}
                         </div>
@@ -655,14 +700,14 @@ const Home = () => {
                   <div className="ticket-wrapper">
                     <Ticket 
                       pnr={bookingSuccess.pnr}
-                      trainName={selectedTrain.train_name}
-                      trainNumber={selectedTrain.train_number}
-                      departureTime={selectedTrain.departure}
-                      arrivalTime={selectedTrain.arrival}
+                      trainName={selectedTrain?.train_name || ""}
+                      trainNumber={selectedTrain?.train_number || ""}
+                      departureTime={selectedTrain?.departure || ""}
+                      arrivalTime={selectedTrain?.arrival || ""}
                       fromStn={fromStn.split(' - ')[0]}
                       toStn={toStn.split(' - ')[0]}
                       date={date}
-                      classType={selectedClass}
+                      classType={selectedClass || ""}
                       passengers={bookingSuccess.passengers}
                       status={bookingSuccess.status}
                     />
@@ -722,7 +767,7 @@ const Home = () => {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #eee' }}>
                       <span style={{ fontSize: '14px', fontWeight: 700 }}>Total Payable</span>
-                      <strong style={{ fontSize: '18px', color: '#1E6F2B' }}>₹{((selectedTrain as any).fares?.[selectedClass] || 0) * passengers.length}</strong>
+                      <strong style={{ fontSize: '18px', color: '#1E6F2B' }}>₹{selectedClass ? ((selectedTrain as any).fares?.[selectedClass] || 0) * passengers.length : 0}</strong>
                     </div>
                   </div>
 
@@ -742,7 +787,7 @@ const Home = () => {
                   <div className="modal-header">
                     <div>
                       <h2 style={{ fontSize: '20px', fontWeight: 800 }}>Passenger Details</h2>
-                      <p style={{ fontSize: '12px', color: '#666' }}>{selectedTrain.train_name}</p>
+                      <p style={{ fontSize: '12px', color: '#666' }}>{selectedTrain?.train_name}</p>
                     </div>
                     <button className="close-btn" onClick={() => setSelectedTrain(null)}><X /></button>
                   </div>
@@ -798,7 +843,7 @@ const Home = () => {
                   <div className="modal-footer" style={{ borderTop: '1px solid #eee', padding: '20px 24px', background: '#f9fafb' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontSize: '18px', fontWeight: 800, color: '#1E6F2B' }}>
-                        ₹{((selectedTrain as any).fares?.[selectedClass] || 0) * passengers.length}
+                        ₹{selectedClass ? ((selectedTrain as any).fares?.[selectedClass] || 0) * passengers.length : 0}
                       </div>
                       <button className="btn btn-primary" onClick={handleBook} style={{ height: '44px', padding: '0 32px' }}>
                         Proceed to Pay

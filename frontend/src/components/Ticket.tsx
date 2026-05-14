@@ -7,9 +7,9 @@ const API_URL = import.meta.env.VITE_API_URL;
 interface PassengerInfo {
   name: string;
   age: number | string;
-  coach: string;
-  seat: string | number;
-  status: string;
+  coach?: string;
+  seat?: string | number;
+  status?: string;
 }
 
 interface TicketProps {
@@ -74,21 +74,21 @@ const Ticket: React.FC<TicketProps> = ({
               {passengers.length > 1 && <span style={{ fontSize: '14px', opacity: 0.6, fontWeight: 500 }}> + {passengers.length - 1} more</span>}
             </h2>
             <div className="ticket-train-info">
-              <span className="ticket-train-name">{trainName}</span>
+              <span className="ticket-train-name">{trainName || 'Unknown Train'}</span>
               <span className="ticket-train-number">
-                <span className="label-tiny">Train No.</span> {trainNumber}
+                <span className="label-tiny">Train No.</span> {trainNumber || '-----'}
               </span>
             </div>
           </div>
           <div className="status-badge" data-status={status} style={{ margin: 0, flexShrink: 0 }}>
-            {status}
+            {status || 'PENDING'}
           </div>
         </div>
         
         <div className="ticket-route-row" style={{ marginTop: '20px' }}>
-          <div className="time">{departureTime || '-'}</div>
-          <div className="duration">{formatDate(date)}</div>
-          <div className="time">{arrivalTime || '-'}</div>
+          <div className="time">{departureTime || '--:--'}</div>
+          <div className="duration">{date ? formatDate(date) : 'TBD'}</div>
+          <div className="time">{arrivalTime || '--:--'}</div>
         </div>
 
         <div className="ticket-visual-path">
@@ -99,11 +99,11 @@ const Ticket: React.FC<TicketProps> = ({
 
         <div className="ticket-stn-row">
           <div className="stn-name">
-            <div className="stn-city">{fromStn}</div>
+            <div className="stn-city">{fromStn || '---'}</div>
             <div className="stn-full">Source</div>
           </div>
           <div className="stn-name" style={{ textAlign: 'right' }}>
-            <div className="stn-city">{toStn}</div>
+            <div className="stn-city">{toStn || '---'}</div>
             <div className="stn-full">Destination</div>
           </div>
         </div>

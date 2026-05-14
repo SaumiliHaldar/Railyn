@@ -24,6 +24,9 @@
   
   --sans: 'Inter', system-ui, sans-serif;
   --heading: 'Outfit', sans-serif;
+  
+  /* Skeleton Shimmer */
+  --shimmer: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
 }
 
 /* ── Global Overflow Fix ── */
@@ -31,6 +34,7 @@ html, body {
   max-width: 100vw;
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
 * {
@@ -89,15 +93,25 @@ body {
 
 /* Navbar Styles */
 .navbar {
-  position: absolute;
+  position: fixed;
   top: 0;
   width: 100%;
-  padding: 32px 6%;
+  padding: 0 6%;
+  height: 80px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 1000;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.navbar.scrolled {
+  height: 64px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
 }
 @media (max-width: 768px) {
   .navbar {
@@ -655,7 +669,8 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.85); /* Darker to compensate for lack of blur */
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -820,21 +835,30 @@ body {
 /* Dashboard Overhaul */
 .dashboard-wrapper {
   min-height: 100vh;
-  background:
-    linear-gradient(rgba(10,12,10,.82), rgba(8,10,8,.92)),
-    url('./assets/forest_railway_hero.png') center/cover fixed;
-  color: white;
+  background: var(--bg-section); /* Soft off-white for contrast */
+  color: var(--text-main);
 }
 
 .dashboard-container {
-  max-width: 1360px;
+  width: 92%;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 120px 80px 80px; /* Match navbar's 80px horizontal padding */
+  padding: 0 0 80px;
+  z-index: 20;
+  margin-top: -120px; /* Overlap with hero */
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
 }
 
 /* ── Header ────────────────────────────────────── */
 .dashboard-header {
-  margin-bottom: 44px;
+  margin-bottom: 32px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(24px);
+  padding: 44px 50px 32px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.02);
 }
 
 .header-row {
@@ -847,19 +871,19 @@ body {
 
 .header-text h1 {
   font-family: var(--heading);
-  font-size: 46px;
+  font-size: 34px;
   font-weight: 800;
-  letter-spacing: -1.5px;
-  margin-bottom: 8px;
-  line-height: 1;
-  color: white;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  letter-spacing: -1.2px;
+  margin-bottom: 4px;
+  line-height: 1.1;
+  color: var(--text-main);
 }
 
 .header-text p {
   font-size: 14px;
-  color: white;
-  opacity: .75;
+  color: var(--text-muted);
+  opacity: 0.8;
+  font-weight: 500;
 }
 
 /* ── Dashboard Stats Grid ──────────────────────── */
@@ -871,39 +895,40 @@ body {
 }
 
 .stat-metric-card {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: white;
+  border: 1px solid #f1f5f9;
   padding: 24px;
   border-radius: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  transition: transform 0.3s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
 }
 
 .stat-metric-card:hover {
   transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
 
 .stat-icon {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
-  background: rgba(30, 111, 43, 0.1);
+  border-radius: 14px;
+  background: var(--primary-light);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--primary);
+  box-shadow: 0 4px 12px var(--primary-glow);
 }
 
 .stat-info h4 {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 1px;
-  opacity: 0.5;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
@@ -944,14 +969,13 @@ body {
 
 .smart-search-bar {
   width: 100%;
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px; /* Slightly more compact radius */
-  padding: 12px 20px 12px 48px; /* Reduced vertical padding */
-  font-size: 14px; /* Reduced font size */
-  font-weight: 500;
-  color: white;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-pill);
+  padding: 14px 20px 14px 48px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
   outline: none;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1004,21 +1028,21 @@ body {
 .filter-pill-group {
   display: flex;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: #f8fafc;
   padding: 6px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-pill);
+  border: 1px solid #e2e8f0;
 }
 
 .filter-pill {
-  padding: 8px 16px;
-  border-radius: 10px;
+  padding: 8px 20px;
+  border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 700;
   border: none;
   cursor: pointer;
   background: transparent;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
   transition: all 0.2s;
 }
 
@@ -1076,19 +1100,60 @@ body {
 /* ── Ticket card ───────────────────────────────── */
 .ticket-card {
   position: relative;
-  background: rgba(255,255,255,.05);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: 18px;
-  padding: 24px 28px;
+  background: white;
+  border: 1px solid rgba(0,0,0,0.02);
+  border-radius: 28px;
+  padding: 32px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease,
-              background .35s ease;
-  box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  gap: 24px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05);
+}
 
-  /* Modern Mask Cutouts: Creates real holes in the card */
+.pnr-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.train-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.5px;
+}
+
+.train-subtitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  opacity: 0.8;
+}
+
+.route-code {
+  font-family: var(--heading);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.ticket-meta-item {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.ticket-meta-sub {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.ticket-card {
   -webkit-mask-image: radial-gradient(circle at 0 73.5%, transparent 10px, black 11px),
                       radial-gradient(circle at 100% 73.5%, transparent 10px, black 11px);
   mask-image: radial-gradient(circle at 0 73.5%, transparent 10px, black 11px),
@@ -1098,10 +1163,11 @@ body {
 }
 
 .ticket-card:hover {
-  background: rgba(255,255,255,.055);
-  border-color: rgba(30,111,43,.5);
-  transform: translateY(-4px);
-  box-shadow: 0 18px 40px rgba(0,0,0,.38);
+  transform: translateY(-8px);
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.08),
+    0 0 0 1px var(--primary-glow);
+  border-color: transparent;
 }
 
 .ticket-card.cancelled {
@@ -1157,28 +1223,24 @@ body {
 .status-badge {
   display: inline-flex;
   align-items: center;
-  padding: 5px 13px;
+  padding: 6px 14px;
   border-radius: 100px;
   font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 1.2px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  background: rgba(255,255,255,.06);
 }
 .status-badge[data-status="CNF"] {
-  color: #4ade80;
-  background: rgba(74,222,128,.1);
-  border: 1px solid rgba(74,222,128,.22);
+  color: #166534;
+  background: #dcfce7;
 }
 .status-badge[data-status="WL"] {
-  color: #fbbf24;
-  background: rgba(251,191,36,.1);
-  border: 1px solid rgba(251,191,36,.22);
+  color: #854d0e;
+  background: #fef9c3;
 }
 .status-badge[data-status="CANCELLED"] {
-  color: #f87171;
-  background: rgba(248,113,113,.1);
-  border: 1px solid rgba(248,113,113,.22);
+  color: #991b1b;
+  background: #fee2e2;
 }
 
 /* route visual */
@@ -1267,20 +1329,20 @@ body {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 8px 16px;
+  padding: 10px 20px;
   border-radius: 12px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
-  transition: all .25s;
-  background: rgba(248,113,113,.06);
-  color: #f87171;
-  border: 1px solid rgba(248,113,113,.14);
+  transition: all .2s;
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
 }
 .btn-cancel:hover {
-  background: #f87171;
+  background: #e11d48;
   color: white;
-  transform: scale(1.04);
+  transform: translateY(-2px);
 }
 
 .btn-text {
@@ -1289,10 +1351,10 @@ body {
   gap: 4px;
   background: none;
   border: none;
-  color: white;
+  color: var(--text-main);
   font-size: 13px;
-  font-weight: 600;
-  opacity: .55;
+  font-weight: 700;
+  opacity: .6;
   cursor: pointer;
   transition: opacity .2s;
 }
@@ -1717,24 +1779,12 @@ body {
   align-items: center;
 }
 
-.ticket-divider::before,
-.ticket-divider::after {
-  content: '';
-  position: absolute;
-  width: 28px;
-  height: 28px;
-  background: #0a0c0a; /* Match dashboard dark background for cutout effect */
-  border-radius: 50%;
-  z-index: 10;
-}
 
-.ticket-divider::before { left: -12px; }
-.ticket-divider::after { right: -12px; }
 
 .dotted-line {
   width: 100%;
   border-top: 3px dashed #e0e0e0;
-  margin: 0 16px;
+  margin: 0;
 }
 
 .ticket-footer-details {
