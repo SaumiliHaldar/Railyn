@@ -30,7 +30,7 @@ const Navbar = () => {
         </SignedOut>
         <SignedIn>
           <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <a href="/dashboard" style={{ color: 'var(--text-main)', textDecoration: 'none', fontSize: '14px', fontWeight: '700', opacity: 0.7 }}>Trips</a>
+            <a href="/dashboard" style={{ color: 'var(--text-main)', textDecoration: 'none', fontSize: '14px', fontWeight: '700', opacity: 0.7 }}>Bookings</a>
             <UserButton afterSignOutUrl="/" />
           </div>
         </SignedIn>

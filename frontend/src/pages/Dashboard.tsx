@@ -147,11 +147,12 @@ const Dashboard = () => {
 
   if (loading) return (
     <div className="dashboard-wrapper">
-      <section className="hero-container">
-        <div className="hero-image-wrapper" style={{ background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="hero-content">
-            <div className="skeleton-box skeleton-header" style={{ margin: '0 auto 12px' }} />
-            <div className="skeleton-box skeleton-line" style={{ width: '120px', margin: '0 auto' }} />
+      <section className="dashboard-hero-panoramic">
+        <div className="panoramic-wrapper skeleton" style={{ background: '#e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div className="panoramic-content">
+            <div className="skeleton-box" style={{ width: '100px', height: '24px', borderRadius: '100px', marginBottom: '16px' }} />
+            <div className="skeleton-box" style={{ width: '280px', height: '42px', marginBottom: '12px' }} />
+            <div className="skeleton-box" style={{ width: '200px', height: '20px' }} />
           </div>
         </div>
       </section>
@@ -205,11 +206,41 @@ const Dashboard = () => {
         </AnimatePresence>
       </div>
 
-      <section className="hero-container">
-        <div className="hero-image-wrapper" style={{ backgroundImage: "linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.4)), url('/src/assets/dashboard_hero.png')" }}>
-          <div className="hero-content">
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hero-subtitle">Your Travel Dashboard</motion.p>
-            <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="hero-title">Welcome back, {user?.firstName}</motion.h1>
+      <section className="dashboard-hero-panoramic">
+        <div className="panoramic-wrapper">
+          <motion.div 
+            initial={{ scale: 1.1, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 1.2, ease: "easeOut" }}
+            className="panoramic-img"
+            style={{ backgroundImage: "url('/src/assets/dashboard_hero.png')" }}
+          />
+          <div className="panoramic-overlay" />
+          <div className="panoramic-content">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="glass-badge"
+            >
+              Travel Dashboard
+            </motion.div>
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="panoramic-title"
+            >
+              Welcome back, {user?.firstName}
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="panoramic-subtitle"
+            >
+              You have {activeCount} active trips scheduled.
+            </motion.p>
           </div>
         </div>
       </section>
