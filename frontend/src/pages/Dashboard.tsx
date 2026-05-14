@@ -1,7 +1,7 @@
 import { useAuth, useUser } from "@clerk/clerk-react";
 import {
-  Train, AlertCircle, 
-  CheckCircle2, RefreshCw, X, Search,
+  AlertCircle, 
+  CheckCircle2, RefreshCw, X, Search
 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,6 +11,18 @@ import { formatDate } from "../utils/dateUtils";
 
 const API_URL  = import.meta.env.VITE_API_URL;
 const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
+
+const getDuration = (dep: string, arr: string) => {
+  if (!dep || !arr) return '';
+  const [h1, m1] = dep.split(':').map(Number);
+  const [h2, m2] = arr.split(':').map(Number);
+  if (isNaN(h1) || isNaN(h2)) return '';
+  let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+  if (mins < 0) mins += 24 * 60;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}h:${m}m`;
+};
 
 /* ─── Framer variants ────────────────────────────────────────── */
 const listVariants = {
@@ -38,6 +50,15 @@ const Dashboard = () => {
   const [cancelTarget,   setCancelTarget]   = useState<any>(null);
   const [paxToCancel,    setPaxToCancel]    = useState<string[]>([]);
   const mqttRef = useRef<any>(null);
+
+  const handleBookAgain = (b: any) => {
+    const params = new URLSearchParams({
+      from: b.from_stn,
+      to: b.to_stn,
+      date: new Date().toISOString().split('T')[0] // Default to today for fresh booking
+    });
+    window.location.href = `/?${params.toString()}`;
+  };
 
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
@@ -86,6 +107,7 @@ const Dashboard = () => {
       setNotifications(prev => [...prev, { ...payload, id: Date.now() }]);
       if (topic.includes("notify")) fetchBookings();
     });
+    
     return () => { client.end(); };
   }, [user]);
 
@@ -148,38 +170,28 @@ const Dashboard = () => {
   if (loading) return (
     <div className="dashboard-wrapper">
       <section className="dashboard-hero-panoramic">
-        <div className="panoramic-wrapper skeleton" style={{ background: '#e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div className="panoramic-wrapper skeleton" style={{ background: 'var(--bg-section)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <div className="panoramic-content">
-            <div className="skeleton-box" style={{ width: '100px', height: '24px', borderRadius: '100px', marginBottom: '16px' }} />
-            <div className="skeleton-box" style={{ width: '280px', height: '42px', marginBottom: '12px' }} />
-            <div className="skeleton-box" style={{ width: '200px', height: '20px' }} />
+            <div className="skeleton-box" style={{ width: '100px', height: '24px', borderRadius: '100px', marginBottom: '16px', background: '#e2e8f0' }} />
+            <div className="skeleton-box" style={{ width: '280px', height: '42px', marginBottom: '12px', background: '#e2e8f0' }} />
+            <div className="skeleton-box" style={{ width: '200px', height: '20px', background: '#e2e8f0' }} />
           </div>
         </div>
       </section>
-      <div className="dashboard-container">
-        <div className="dashboard-header">
-           <div className="skeleton-box skeleton-header" style={{ marginBottom: 12 }} />
-           <div className="skeleton-box skeleton-line" style={{ width: '40%' }} />
+      <div className="dashboard-container" style={{ marginTop: 0 }}>
+        <div className="dashboard-stats-grid" style={{ padding: '0 20px', marginTop: '-40px' }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} className="skeleton-card" style={{ height: '100px', borderRadius: '24px' }} />
+          ))}
         </div>
-        <div className="booking-list">
-          {[1,2,3].map(i => (
-            <div key={i} className="skeleton-card">
-              <div style={{ display: 'flex', gap: 16 }}>
-                <div className="skeleton-box skeleton-circle" />
-                <div style={{ flex: 1 }}>
-                  <div className="skeleton-box skeleton-header" style={{ width: '30%', marginBottom: 8 }} />
-                  <div className="skeleton-box skeleton-line" style={{ width: '50%' }} />
-                </div>
-              </div>
-              <div className="skeleton-box skeleton-line" />
-            </div>
+        <div className="booking-list" style={{ padding: '0 20px' }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} className="skeleton-card" style={{ height: '200px', borderRadius: '28px' }} />
           ))}
         </div>
       </div>
     </div>
   );
-
-  const activeCount = bookings.filter(b => b.status !== "CANCELLED").length;
 
   return (
     <div className="dashboard-wrapper">
@@ -215,8 +227,8 @@ const Dashboard = () => {
             className="panoramic-img"
             style={{ backgroundImage: "url('/src/assets/dashboard_hero.png')" }}
           />
-          <div className="panoramic-overlay" />
-          <div className="panoramic-content">
+          <div className="panoramic-overlay" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7))' }} />
+          <div className="panoramic-content" style={{ paddingBottom: '40px' }}>
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -239,49 +251,44 @@ const Dashboard = () => {
               transition={{ delay: 0.5 }}
               className="panoramic-subtitle"
             >
-              You have {activeCount} active trips scheduled.
+              Manage your bookings and track your journey in real-time.
             </motion.p>
           </div>
         </div>
       </section>
 
-      <div className="dashboard-container">
-        <div className="dashboard-header">
-          <div className="header-row" style={{ alignItems: 'center' }}>
-            <div className="header-text">
-              <motion.h2 initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="train-title">
-                {activeCount} Active Trip{activeCount !== 1 ? "s" : ""}
-              </motion.h2>
-            </div>
-
-            <motion.div className="pnr-search-box" style={{ width: '360px', background: 'white' }}>
-              <Search size={16} style={{ color: '#94a3b8' }} />
-              <input
-                type="text"
-                placeholder="Search trip..."
-                value={searchQuery}
-                onChange={e => handleSearch(e.target.value)}
-                className="pnr-search-input"
-                style={{ color: 'var(--text-main)' }}
-              />
-              {searchLoading && <div className="search-spinner" />}
-              {searchQuery && !searchLoading && <X size={14} onClick={() => setSearchQuery("")} style={{ cursor: 'pointer', color: '#94a3b8' }} />}
-            </motion.div>
+      <div className="dashboard-container" style={{ marginTop: '-60px', position: 'relative', zIndex: 30 }}>
+        {/* Floating Search & Filter Bar */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="dashboard-controls-floating"
+        >
+          <div className="smart-search-wrapper">
+            <input
+              type="text"
+              placeholder="Search by PNR, Train or Station..."
+              value={searchQuery}
+              onChange={e => handleSearch(e.target.value)}
+              className="smart-search-bar"
+            />
+            <Search size={18} className="search-main-icon" />
+            {searchLoading && <div className="pnr-indicator" style={{ background: 'transparent', boxShadow: 'none' }}><div className="search-spinner" /></div>}
+            {searchQuery && !searchLoading && (
+              <div className="pnr-indicator" style={{ background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => setSearchQuery("")}>
+                <X size={16} />
+              </div>
+            )}
           </div>
 
-          {searchError && (
-            <motion.div className="search-error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginTop: 12 }}>
-              <AlertCircle size={14} /> {searchError}
-            </motion.div>
-          )}
-
-          <div className="filter-chips">
-            {['Everything', 'Confirmed', 'Waiting', 'Cancelled'].map((label, idx) => {
+          <div className="filter-pill-group">
+            {['All', 'Confirmed', 'Waiting', 'Cancelled'].map((label, idx) => {
               const val = ['ALL', 'CNF', 'WL', 'CANCELLED'][idx];
               return (
                 <button
                   key={val}
-                  className={`filter-chip ${activeFilter === val ? 'active' : ''}`}
+                  className={`filter-pill ${activeFilter === val ? 'active' : ''}`}
                   onClick={() => setActiveFilter(val)}
                 >
                   {label}
@@ -289,55 +296,74 @@ const Dashboard = () => {
               );
             })}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="booking-list">
+        {searchError && (
+          <motion.div className="search-error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8, color: '#ef4444', fontSize: '13px', fontWeight: 600 }}>
+            <AlertCircle size={14} /> {searchError}
+          </motion.div>
+        )}
+
+        <div className="booking-list" style={{ marginTop: '20px' }}>
           {filteredBookings.length === 0 ? (
-            <div className="empty-state">
-              <Search size={48} color="#e2e8f0" />
-              <h3>No results</h3>
+            <div className="empty-state" style={{ padding: '80px 20px', textAlign: 'center', background: 'white', borderRadius: '32px', border: '1px dashed #e2e8f0' }}>
+              <div style={{ width: '80px', height: '80px', background: 'var(--bg-section)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                <Search size={32} style={{ color: 'var(--primary)', opacity: 0.5 }} />
+              </div>
+              <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>No journeys found</h3>
+              <p style={{ color: 'var(--text-muted)', maxWidth: '300px', margin: '0 auto 24px', fontSize: '14px' }}>
+                We couldn't find any bookings matching your current filters or search query.
+              </p>
+              <button className="btn btn-primary" onClick={() => { setSearchQuery(""); setActiveFilter("ALL"); }}>
+                Clear all filters
+              </button>
             </div>
           ) : (
             <motion.div variants={listVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <AnimatePresence mode='popLayout'>
                 {filteredBookings.map(b => (
-                  <motion.div key={b._id} layout variants={cardVariants} exit={{ opacity: 0, scale: 0.98 }} className={`ticket-card ${b.status === "CANCELLED" ? "cancelled" : ""}`}>
-                    <div className="ticket-main">
-                      <div className="train-info">
-                        <span className="pnr-label">{b.pnr}</span>
-                        <div>
-                          <h3 className="train-title">{b.train_name}</h3>
-                          <span className="train-subtitle">#{b.train_number}</span>
-                        </div>
-                        <div className="status-badge" data-status={b.status}>{b.status}</div>
+                  <motion.div key={b._id} layout variants={cardVariants} exit={{ opacity: 0, scale: 0.98 }} className={`ticket-card ${b.status === "CANCELLED" ? "cancelled" : "completed"}`}>
+                    <div className="ticket-content">
+                      <div className="ticket-header-row">
+                        <div className="ticket-badge" data-status={b.status}>{b.status || 'RES'}</div>
+                        <div className="ticket-pnr">PNR: <strong>{b.pnr}</strong></div>
                       </div>
-
-                      <div className="route-info">
-                        <span className="route-code">{b.from_stn}</span>
-                        <div className="divider"><div className="line" /><Train size={14} /><div className="line" /></div>
-                        <span className="route-code">{b.to_stn}</span>
+                      
+                      <div className="ticket-labels-row">
+                        <div className="ticket-label">Train No.</div>
+                        <div className="ticket-label right">Journey Date</div>
                       </div>
-
-                      <div className="passenger-brief">
-                        <div className="ticket-meta-item">{formatDate(b.travel_date)}</div>
-                        <div className="ticket-meta-sub">{b.departure} → {b.arrival}</div>
+                      
+                      <div className="ticket-values-row">
+                        <div className="ticket-val train-name">{b.train_number} ({b.train_name})</div>
+                        <div className="ticket-val date-val right">{b.travel_date ? formatDate(b.travel_date) : ''}</div>
+                      </div>
+                      
+                      <div className="ticket-route-row-dash">
+                        <div className="stn-dash">{b.from_stn}</div>
+                        <div className="route-dash-line">---{getDuration(b.departure, b.arrival)}---</div>
+                        <div className="stn-dash right">{b.to_stn}</div>
                       </div>
                     </div>
-
-                    <div className="ticket-footer" style={{ border: 'none', padding: 0 }}>
-                      <span className="ticket-meta-sub" style={{ fontWeight: 800 }}>{b.passengers?.length || 0} Pax · {b.class_type}</span>
-                      <div className="card-actions">
-                        {b.status !== "CANCELLED" && <button className="btn-cancel" style={{ background: 'none', border: 'none', padding: 0, fontSize: '13px' }} onClick={() => handleCancelInit(b)}>Cancel</button>}
-                        <button className="btn-text" style={{ color: 'var(--primary)', fontWeight: 800, opacity: 1 }} onClick={() => setSelectedBooking(b)}>Details</button>
-                      </div>
+                    
+                    <div className="ticket-divider"></div>
+                    
+                    <div className="ticket-actions">
+                      {b.status !== "CANCELLED" && new Date(b.travel_date) > new Date() ? (
+                        <button className="action-btn" onClick={() => handleCancelInit(b)}>Cancel</button>
+                      ) : (
+                        <button className="action-btn" onClick={() => handleBookAgain(b)}>Book Again</button>
+                      )}
+                      <div className="action-sep"></div>
+                      <button className="action-btn" onClick={() => setSelectedBooking(b)}>View Details</button>
                     </div>
                   </motion.div>
                 ))}
               </AnimatePresence>
             </motion.div>
           )}
+          </div>
         </div>
-      </div>
 
       {/* Confirmation Modal */}
       <AnimatePresence>
@@ -347,8 +373,8 @@ const Dashboard = () => {
               <h3>{showConfirm.title}</h3>
               <p>{showConfirm.message}</p>
               <div className="dialog-actions">
-                <button className="btn btn-outline" onClick={() => setShowConfirm(null)}>Dismiss</button>
-                <button className="btn btn-primary" onClick={() => { showConfirm.onConfirm(); setShowConfirm(null); }}>Proceed</button>
+                <button className="btn-secondary-outline" onClick={() => setShowConfirm(null)}>Dismiss</button>
+                <button className="btn-danger-confirm" onClick={() => { showConfirm.onConfirm(); setShowConfirm(null); }}>Proceed</button>
               </div>
             </motion.div>
           </div>

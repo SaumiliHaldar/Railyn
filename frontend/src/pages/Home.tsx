@@ -131,13 +131,6 @@ const Home = () => {
     if (t) setToStn(t);
     if (d) setDate(d);
     
-    // Auto-search if we have enough info
-    if (f && t) {
-      setTimeout(() => {
-        const searchBtn = document.querySelector('.btn-search');
-        if (searchBtn instanceof HTMLElement) searchBtn.click();
-      }, 500);
-    }
   }, [user]);
 
   const handleStationSearch = async (query: string, setSuggestions: React.Dispatch<React.SetStateAction<Station[]>>) => {
