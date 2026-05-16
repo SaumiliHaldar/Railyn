@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useToast } from './ui/toast-1';
 
 interface PaymentModalProps {
   user: any;
@@ -30,6 +31,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   razorpayKeyId
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const { showToast } = useToast();
 
   const totalFare = (selectedTrain?.fares[selectedClass] || 0) * passengers.length;
 
@@ -76,8 +78,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           if (verifyRes.ok) {
             // Step 4: Finalize Booking
             await finalizeBooking(token);
+            showToast("Payment verified successfully!", "success");
           } else {
-            alert("Payment verification failed!");
+            showToast("Payment verification failed!", "error");
             setIsProcessing(false);
           }
         },
@@ -93,7 +96,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       rzp.open();
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Payment failed");
+      showToast(err.message || "Payment failed", "error");
       setIsProcessing(false);
     }
   };

@@ -2,9 +2,11 @@ import { useAuth, useUser } from "@clerk/clerk-react";
 import { Search, MapPin, Calendar, Train, Clock, X } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import Ticket from "../components/Ticket";
 import PaymentModal from "../components/PaymentModal";
 import { formatDate } from "../utils/dateUtils";
+import { useToast } from "../components/ui/toast-1";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -73,6 +75,8 @@ const Home = () => {
   const [activeTab, setActiveTab] = useState("book");
   const { getToken } = useAuth();
   const { user } = useUser();
+  const { showToast } = useToast();
+  const navigate = useNavigate();
   
   const [fromStn, setFromStn] = useState("");
   const [toStn, setToStn] = useState("");
@@ -168,19 +172,21 @@ const Home = () => {
   };
 
   const handleBook = async () => {
-    if (!user) return alert("Please login to book tickets");
+    if (!user) return showToast("Please login to book tickets", "warning");
     if (passengers.some(p => !p.name || !p.age)) {
-      alert("Please fill all passenger details");
+      showToast("Please fill all passenger details", "error");
       return;
     }
     setShowPayment(true);
   };
 
   const handleBookingSuccess = (data: any) => {
-    setBookingSuccess(data);
-    
+    setBookingSuccess(data.booking);
+    setShowPayment(false);
+    showToast("Booking Confirmed! Redirecting to dashboard...", "success");
+
     // Local UI update: Decrement the seat count
-    if (data.status === "CNF" && selectedTrain && selectedClass) {
+    if (data.booking?.status === "CNF" && selectedTrain && selectedClass) {
       const numPax = passengers.length;
       setTrains(prevTrains => prevTrains.map(t => {
         if (t.train_number === selectedTrain.train_number) {
@@ -196,6 +202,11 @@ const Home = () => {
         return t;
       }));
     }
+
+    // Redirect to dashboard after showing the ticket
+    setTimeout(() => {
+      navigate("/dashboard");
+    }, 4500);
   };
 
   const checkPnrStatus = async () => {
@@ -205,11 +216,14 @@ const Home = () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/pnr_status/${pnrInput}`);
       const data = await res.json();
-      if (res.ok) setPnrResult(data.booking);
-      else alert(data.detail || "PNR not found");
+      if (res.ok) {
+        setPnrResult(data.booking);
+        showToast("PNR Status Found", "success");
+      }
+      else showToast(data.detail || "PNR not found", "error");
     } catch (err) {
       console.error(err);
-      alert("Error fetching PNR status");
+      showToast("Error fetching PNR status", "error");
     } finally {
       setPnrLoading(false);
     }
@@ -225,12 +239,13 @@ const Home = () => {
       if (res.ok) {
         setChartResult(data);
         if (data.coaches.length > 0) setSelectedCoach(data.coaches[0]);
+        showToast("Vacancy Chart Loaded", "success");
       } else {
-        alert(data.detail || "Train not found");
+        showToast(data.detail || "Train not found", "error");
       }
     } catch (err) {
       console.error(err);
-      alert("Error fetching chart data");
+      showToast("Error fetching chart data", "error");
     } finally {
       setChartLoading(false);
     }
