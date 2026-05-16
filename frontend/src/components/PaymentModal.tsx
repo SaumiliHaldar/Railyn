@@ -148,7 +148,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     <div style={{ padding: '32px 24px' }}>
       <div style={{ textAlign: 'center', marginBottom: '28px' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#e0f2fe', padding: '6px 16px', borderRadius: '30px', marginBottom: '16px' }}>
-          <div style={{ width: '8px', height: '8px', background: '#0ea5e9', borderRadius: '50%', boxShadow: '0 0 10px #0ea5e9' }}></div>
           <span style={{ fontSize: '11px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Secure Razorpay Checkout</span>
         </div>
         <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>Confirm & Pay</h2>
