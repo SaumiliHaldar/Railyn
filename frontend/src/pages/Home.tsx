@@ -351,19 +351,21 @@ const Home = () => {
                   </button>
                 </div>
 
-                <div style={{ display: 'flex', gap: '20px', marginTop: '20px', paddingLeft: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <select value={quota} onChange={(e) => setQuota(e.target.value)} style={{ border: 'none', background: 'none', fontWeight: '700', fontSize: '14px', color: '#64748b', cursor: 'pointer', padding: '0' }}>
+                <div style={{ display: 'flex', gap: '24px', marginTop: '24px', paddingLeft: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <select value={quota} onChange={(e) => setQuota(e.target.value)} style={{ border: 'none', background: 'none', fontWeight: '800', fontSize: '13px', color: 'var(--text-main)', cursor: 'pointer', padding: '0', textTransform: 'uppercase' }}>
                       <option>General</option>
                       <option>Ladies</option>
                       <option>Tatkal</option>
                     </select>
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#64748b', cursor: 'pointer' }}>
-                    <input type="checkbox" style={{ width: 'auto' }} /> Divyaang Concession
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: '600' }}>
+                    <input type="checkbox" style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }} /> 
+                    <span>Person With Disability</span>
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#64748b', cursor: 'pointer' }}>
-                    <input type="checkbox" style={{ width: 'auto' }} /> Railway Pass Concession
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: '600' }}>
+                    <input type="checkbox" style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }} /> 
+                    <span>Flexible with Date</span>
                   </label>
                 </div>
               </div>
@@ -621,14 +623,26 @@ const Home = () => {
                 </div>
                 
                 {/* Waitlist Probability Badge */}
-                <div className="train-meta-footer">
-                  <div className="prob-container">
-                    <span className="prob-label">Confirmation Probability:</span>
+                <div className="train-meta-footer" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <div className="prob-container" style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span className="prob-label" style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Confirmation Chance:</span>
                     {Object.entries(train.wl_probabilities || {}).map(([cls, prob]) => (
-                      <span key={cls} className={`prob-badge ${(prob as string).toLowerCase()}`}>
+                      <span key={cls} className={`prob-badge ${(prob as string).toLowerCase()}`} style={{ 
+                        fontSize: '11px', 
+                        fontWeight: '700', 
+                        padding: '4px 10px', 
+                        borderRadius: '20px',
+                        background: (prob as string).toLowerCase() === 'high' ? '#f0fdf4' : (prob as string).toLowerCase() === 'medium' ? '#fffbeb' : '#fef2f2',
+                        color: (prob as string).toLowerCase() === 'high' ? '#166534' : (prob as string).toLowerCase() === 'medium' ? '#92400e' : '#991b1b',
+                        border: '1px solid currentColor',
+                        opacity: 0.8
+                      }}>
                         {cls}: {prob as string}
                       </span>
                     ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>
+                    <span>Runs On: M T W T F S S</span>
                   </div>
                 </div>
               </motion.div>
