@@ -134,13 +134,6 @@ const Home = () => {
     if (f) setFromStn(f);
     if (t) setToStn(t);
     if (d) setDate(d);
-    
-    // Load Razorpay Script
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    document.body.appendChild(script);
-    
   }, [user]);
 
   const handleStationSearch = async (query: string, setSuggestions: React.Dispatch<React.SetStateAction<Station[]>>) => {
