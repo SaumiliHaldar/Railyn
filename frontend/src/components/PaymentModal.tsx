@@ -77,8 +77,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
           if (verifyRes.ok) {
             // Step 4: Finalize Booking
-            await finalizeBooking(token, response.razorpay_payment_id);
-            showToast("Payment verified successfully!", "success");
+            try {
+              await finalizeBooking(token, response.razorpay_payment_id);
+              showToast("Payment verified successfully!", "success");
+            } catch (err: any) {
+              showToast(err.message || "Failed to finalize booking!", "error");
+            }
           } else {
             showToast("Payment verification failed!", "error");
             setIsProcessing(false);
@@ -130,9 +134,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         })
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Booking failed on server");
+      }
       onSuccess(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      throw err;
     } finally {
       setIsProcessing(false);
     }

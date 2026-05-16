@@ -294,7 +294,7 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
     if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET and booking.razorpay_payment_id:
         try:
             payment = rzp_client.payment.fetch(booking.razorpay_payment_id)
-            if payment['status'] != 'captured':
+            if payment['status'] not in ['captured', 'authorized']:
                  raise HTTPException(status_code=400, detail="Payment not captured")
             
             # Verify amount (Razorpay amount is in paisa)
@@ -399,6 +399,10 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
     
     return {
         "booking_id": str(result.inserted_id),
+        "booking": {
+            **booking_record,
+            "_id": str(result.inserted_id)
+        },
         "pnr": pnr,
         "passengers": assigned_passengers,
         "status": status,
