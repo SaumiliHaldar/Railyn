@@ -112,6 +112,7 @@ class BookingRequest(BaseModel):
     user_name: Optional[str] = None
     user_email: Optional[str] = None
     total_fare: Optional[int] = 0
+    razorpay_payment_id: Optional[str] = None
 
 class CancelRequest(BaseModel):
     booking_id: str
@@ -285,6 +286,32 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
     if not train:
         raise HTTPException(status_code=404, detail="Train not found")
         
+    # 2. Verify Payment (CRITICAL SECURITY FIX)
+    dist = train.get("distance", 100)
+    t_type = train.get("type", "Express")
+    recalculated_fare = sum([calculate_fare(dist, booking.class_type, t_type, p.age) for p in booking.passengers])
+    
+    if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET and booking.razorpay_payment_id:
+        try:
+            payment = rzp_client.payment.fetch(booking.razorpay_payment_id)
+            if payment['status'] != 'captured':
+                 raise HTTPException(status_code=400, detail="Payment not captured")
+            
+            # Verify amount (Razorpay amount is in paisa)
+            if int(payment['amount']) < recalculated_fare * 100:
+                raise HTTPException(status_code=400, detail="Payment amount mismatch")
+                
+            # Check if this payment ID has already been used (Simple replay protection)
+            existing_booking = await db.bookings.find_one({"razorpay_payment_id": booking.razorpay_payment_id})
+            if existing_booking:
+                raise HTTPException(status_code=400, detail="Payment already used for another booking")
+        except Exception as e:
+            if isinstance(e, HTTPException): raise e
+            raise HTTPException(status_code=400, detail=f"Payment verification failed: {str(e)}")
+    elif not booking.razorpay_payment_id and RAZORPAY_KEY_ID:
+        raise HTTPException(status_code=400, detail="Missing payment ID")
+
+    # 3. Handle Seat Inventory
     seat_inv = train.get("seat_inventory", {})
     if booking.class_type not in seat_inv:
         raise HTTPException(status_code=400, detail="Invalid class type")
@@ -299,17 +326,21 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
     assigned_passengers = []
     
     if available_seats >= num_passengers:
-        # 1. Update Shared Memory (Immediate)
+        # Update Shared Memory (Immediate)
         new_count = shared_mem.update_seats(booking.train_number, booking.class_type, -num_passengers)
         
-        # 2. Sync to MongoDB (Background or inline)
+        # Sync to MongoDB
         await db.trains.update_one(
             {"number": booking.train_number},
             {"$set": {f"seat_inventory.{booking.class_type}": new_count}}
         )
         
-        # Assign seats for each passenger
-        coach = random.choice(["B1", "B2", "A1", "S1", "S2", "H1"])
+        # Assign seats for each passenger with CORRECT COACH PREFIX
+        prefix_map = {"1AC": "H", "2AC": "A", "3AC": "B", "Sleeper": "S", "General": "GS"}
+        coach_prefix = prefix_map.get(booking.class_type, "S")
+        coach_num = random.randint(1, 3) if booking.class_type in ["Sleeper", "3AC"] else 1
+        coach = f"{coach_prefix}{coach_num}"
+        
         start_seat = random.randint(1, 72 - num_passengers)
         for i, p in enumerate(booking.passengers):
             assigned_passengers.append({
@@ -321,7 +352,7 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
                 "status": "CNF"
             })
     else:
-        # Waitlist logic for the whole group
+        # Waitlist logic
         status = "WL"
         wl_count = await db.bookings.count_documents({
             "train_number": booking.train_number,
@@ -338,11 +369,6 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
                 "seat": wl_position,
                 "status": "WL"
             })
-
-    # Calculate Total Fare accurately using the engine for each passenger
-    dist = train.get("distance", 100)
-    t_type = train.get("type", "Express")
-    total_fare = sum([calculate_fare(dist, booking.class_type, t_type, p.age) for p in booking.passengers])
 
     # Generate 10-digit PNR
     pnr = "".join([str(random.randint(0, 9)) for _ in range(10)])
@@ -363,7 +389,10 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
         "class_type": booking.class_type,
         "passengers": assigned_passengers,
         "status": status,
-        "wl_position": wl_position if status == "WL" else None
+        "wl_position": wl_position if status == "WL" else None,
+        "total_fare": recalculated_fare,
+        "razorpay_payment_id": booking.razorpay_payment_id,
+        "created_at": datetime.now()
     }
     
     result = await db.bookings.insert_one(booking_record)
@@ -374,6 +403,7 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
         "passengers": assigned_passengers,
         "status": status,
         "wl_position": wl_position if status == "WL" else None,
+        "total_fare": recalculated_fare,
         "message": "Booking successful" if status == "CNF" else "Added to Waitlist"
     }
 
@@ -525,33 +555,69 @@ async def simulate_delay(request: Request, delay_req: DelayRequest, background_t
 async def swap_ticket(request: Request, swap_req: SwapRequest, user_token: dict = Depends(verify_token)):
     db = request.app.state.db
     user_id = user_token.get("sub")
-    from bson.objectid import ObjectId
     
     old_booking = await db.bookings.find_one({"_id": ObjectId(swap_req.old_booking_id), "user_id": user_id})
     if not old_booking:
         raise HTTPException(status_code=404, detail="Booking not found")
         
+    if old_booking["status"] == "CANCELLED_SWAPPED":
+        return {"message": "Already swapped"}
+
+    # Fetch new train
+    new_train = await db.trains.find_one({"number": swap_req.new_train_number})
+    if not new_train:
+        raise HTTPException(status_code=404, detail="New train not found")
+
+    num_pax = len([p for p in old_booking["passengers"] if p["status"] != "CAN"])
+    if num_pax == 0:
+        raise HTTPException(status_code=400, detail="No active passengers to swap")
+
+    # Verify seats in new train
+    available = shared_mem.get_seats(swap_req.new_train_number, old_booking["class_type"])
+    if available < num_pax:
+        raise HTTPException(status_code=400, detail="Not enough seats in new train")
+
     # Cancel old
     await db.bookings.update_one({"_id": ObjectId(swap_req.old_booking_id)}, {"$set": {"status": "CANCELLED_SWAPPED"}})
     if old_booking["status"] == "CNF":
-        new_old_count = shared_mem.update_seats(old_booking["train_number"], old_booking["class_type"], 1)
+        new_old_count = shared_mem.update_seats(old_booking["train_number"], old_booking["class_type"], num_pax)
         await db.trains.update_one({"number": old_booking["train_number"]}, {"$set": {f"seat_inventory.{old_booking['class_type']}": new_old_count}})
         
-    # Book new train (Assume seats available for swap)
-    new_new_count = shared_mem.update_seats(swap_req.new_train_number, old_booking["class_type"], -1)
+    # Book new train
+    new_new_count = shared_mem.update_seats(swap_req.new_train_number, old_booking["class_type"], -num_pax)
     await db.trains.update_one({"number": swap_req.new_train_number}, {"$set": {f"seat_inventory.{old_booking['class_type']}": new_new_count}})
     
+    # Create new booking record (copying passengers)
+    new_passengers = []
+    prefix_map = {"1AC": "H", "2AC": "A", "3AC": "B", "Sleeper": "S", "General": "GS"}
+    coach_prefix = prefix_map.get(old_booking["class_type"], "S")
+    coach = f"{coach_prefix}{random.randint(1, 3)}"
+    start_seat = random.randint(1, 40)
+
+    for i, p in enumerate(old_booking["passengers"]):
+        if p["status"] != "CAN":
+            new_passengers.append({
+                **p,
+                "coach": coach,
+                "seat": start_seat + i,
+                "status": "CNF"
+            })
+        else:
+            new_passengers.append(p)
+
     new_booking = {
-        "user_id": user_id,
+        **old_booking,
+        "_id": None, # Let MongoDB generate a new ID
         "train_number": swap_req.new_train_number,
-        "from_stn": old_booking["from_stn"],
-        "to_stn": old_booking["to_stn"],
-        "class_type": old_booking["class_type"],
-        "passenger_name": old_booking["passenger_name"],
-        "passenger_age": old_booking["passenger_age"],
+        "train_name": new_train["name"],
         "status": "CNF",
-        "wl_position": None
+        "passengers": new_passengers,
+        "pnr": "".join([str(random.randint(0, 9)) for _ in range(10)]),
+        "created_at": datetime.now(),
+        "swapped_from": str(old_booking["_id"])
     }
+    del new_booking["_id"] # Ensure it's not present
+    
     res = await db.bookings.insert_one(new_booking)
     
     return {"message": "Successfully swapped train!", "new_booking_id": str(res.inserted_id)}

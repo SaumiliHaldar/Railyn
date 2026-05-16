@@ -77,7 +77,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
           if (verifyRes.ok) {
             // Step 4: Finalize Booking
-            await finalizeBooking(token);
+            await finalizeBooking(token, response.razorpay_payment_id);
             showToast("Payment verified successfully!", "success");
           } else {
             showToast("Payment verification failed!", "error");
@@ -101,7 +101,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
-  const finalizeBooking = async (token: string | null) => {
+  const finalizeBooking = async (token: string | null, paymentId?: string) => {
     try {
       const res = await fetch(`${apiUrl}/book_tkt`, {
         method: 'POST',
@@ -125,7 +125,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           })),
           user_name: user.fullName,
           user_email: user.primaryEmailAddress?.emailAddress,
-          total_fare: totalFare
+          total_fare: totalFare,
+          razorpay_payment_id: paymentId
         })
       });
       const data = await res.json();
