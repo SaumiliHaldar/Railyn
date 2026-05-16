@@ -131,6 +131,12 @@ const Home = () => {
     if (t) setToStn(t);
     if (d) setDate(d);
     
+    // Load Razorpay Script
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
+    
   }, [user]);
 
   const handleStationSearch = async (query: string, setSuggestions: React.Dispatch<React.SetStateAction<Station[]>>) => {
@@ -171,16 +177,84 @@ const Home = () => {
   };
 
   const executeBooking = async () => {
+    if (!user || !selectedTrain || !selectedClass) return;
     setIsProcessing(true);
-    
-    // Simulate interactive payment verification delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
     
     try {
       const token = await getToken();
+      const totalFare = (selectedTrain.fares[selectedClass] || 0) * passengers.length;
+
+      // Step 1: Create Order on Backend
+      const orderRes = await fetch(`${API_URL}/payment_order`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount: totalFare })
+      });
+      const orderData = await orderRes.json();
+
+      if (!orderRes.ok) throw new Error(orderData.detail || "Failed to create order");
+
+      // Step 2: Open Razorpay Modal
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_Spx9Yg7Ph2Yw1z",
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "Railyn Payments",
+        description: `Booking for ${selectedTrain.train_name}`,
+        order_id: orderData.id,
+        handler: async (response: any) => {
+          // Step 3: Verify Payment on Backend
+          const verifyRes = await fetch(`${API_URL}/payment_verify`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            })
+          });
+          const verifyData = await verifyRes.json();
+
+          if (verifyRes.ok) {
+            // Step 4: Finalize Booking
+            await finalizeBooking(token, totalFare);
+          } else {
+            alert("Payment verification failed!");
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: user.fullName,
+          email: user.primaryEmailAddress?.emailAddress,
+        },
+        theme: {
+          color: "#1E6F2B"
+        },
+        modal: {
+          ondismiss: () => setIsProcessing(false)
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "An error occurred during payment");
+      setIsProcessing(false);
+    }
+  };
+
+  const finalizeBooking = async (token: string | null, totalFare: number) => {
+    try {
       if (!selectedTrain || !selectedClass) return;
       
-      const totalFare = (selectedTrain.fares[selectedClass] || 0) * passengers.length;
       const res = await fetch(`${API_URL}/book_tkt`, {
         method: 'POST',
         headers: { 
@@ -209,7 +283,7 @@ const Home = () => {
       const data = await res.json();
       setBookingSuccess(data);
 
-      // Local UI update: Decrement the seat count by number of passengers
+      // Local UI update: Decrement the seat count
       if (data.status === "CNF" && selectedTrain && selectedClass) {
         const numPax = passengers.length;
         setTrains(prevTrains => prevTrains.map(t => {
@@ -729,50 +803,62 @@ const Home = () => {
                 </div>
               ) : showPayment ? (
                 <div style={{ padding: '32px 24px' }}>
-                  <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                    <h2 style={{ fontSize: '20px', fontWeight: 800 }}>Secure Payment</h2>
-                    <p style={{ fontSize: '13px', color: '#666' }}>UPI & Card Simulation Enabled</p>
+                  <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#e0f2fe', padding: '6px 16px', borderRadius: '30px', marginBottom: '16px' }}>
+                      <div style={{ width: '8px', height: '8px', background: '#0ea5e9', borderRadius: '50%', boxShadow: '0 0 10px #0ea5e9' }}></div>
+                      <span style={{ fontSize: '11px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Secure Razorpay Checkout</span>
+                    </div>
+                    <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>Confirm & Pay</h2>
+                    <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Complete your transaction to secure your seats</p>
                   </div>
 
-                  <div className="upi-qr-box" style={{ 
-                    width: '160px', 
-                    height: '160px', 
-                    margin: '0 auto 24px', 
-                    background: '#fff', 
-                    padding: '12px', 
-                    borderRadius: '20px',
-                    border: '1px solid #eee',
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{ width: '120px', height: '120px', background: '#f8f9fa', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed #ddd' }}>
-                      <span style={{ fontSize: '8px', color: '#999', fontWeight: 800, textAlign: 'center' }}>DEMO<br/>GATEWAY</span>
-                    </div>
-                  </div>
-
-                  <div style={{ background: '#f8faf8', padding: '16px 20px', borderRadius: '16px', marginBottom: '24px', border: '1px solid #edf2ed' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '13px', color: '#666' }}>Class: <strong>{selectedClass}</strong></span>
-                      <span style={{ fontSize: '13px', color: '#666' }}>Pax: <strong>{passengers.length}</strong></span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #eee' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 700 }}>Total Payable</span>
-                      <strong style={{ fontSize: '18px', color: '#1E6F2B' }}>₹{selectedClass ? ((selectedTrain as any).fares?.[selectedClass] || 0) * passengers.length : 0}</strong>
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '24px', padding: '24px', marginBottom: '28px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '14px', color: '#64748b' }}>Train</span>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{selectedTrain?.train_name}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '14px', color: '#64748b' }}>Journey</span>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{fromStn.split(' - ')[0]} → {toStn.split(' - ')[0]}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '14px', color: '#64748b' }}>Class & Passengers</span>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{selectedClass} | {passengers.length} Adult(s)</span>
+                      </div>
+                      <div style={{ height: '1px', background: '#e2e8f0', margin: '4px 0' }}></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>Total Amount</span>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '24px', fontWeight: 900, color: '#1E6F2B' }}>₹{selectedClass ? ((selectedTrain as any).fares?.[selectedClass] || 0) * passengers.length : 0}</div>
+                          <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600 }}>All taxes included</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="btn btn-outline" style={{ flex: 1, height: '48px' }} onClick={() => setShowPayment(false)}>Back</button>
+                    <button className="btn btn-outline" style={{ flex: 1, height: '56px', borderRadius: '16px', fontWeight: 700 }} onClick={() => setShowPayment(false)}>Modify Details</button>
                     <button 
                       className="btn btn-primary" 
-                      style={{ flex: 2, height: '48px' }} 
+                      style={{ 
+                        flex: 1.5, 
+                        height: '56px', 
+                        borderRadius: '16px', 
+                        fontWeight: 800, 
+                        fontSize: '16px',
+                        background: 'linear-gradient(135deg, #1E6F2B 0%, #2d9a3e 100%)',
+                        boxShadow: '0 10px 20px rgba(30, 111, 43, 0.2)'
+                      }} 
                       onClick={executeBooking}
                     >
-                      Verify & Pay
+                      Proceed to Pay
                     </button>
+                  </div>
+                  
+                  <div style={{ textAlign: 'center', marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>100% Secure Transaction via Razorpay</span>
                   </div>
                 </div>
               ) : (

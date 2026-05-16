@@ -22,6 +22,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import mqtt_engine, shared_mem, pricing
+import razorpay
 from bson.objectid import ObjectId
 
 load_dotenv()
@@ -29,6 +30,11 @@ load_dotenv()
 # Global variables for MongoDB
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
+# Global variables for Razorpay
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
+rzp_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+
 DB_NAME = "railyn"
 client = None
 JWKS_CACHE = None
@@ -138,6 +144,15 @@ class UserRequest(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     image_url: Optional[str] = None
+
+class PaymentOrderRequest(BaseModel):
+    amount: int # Amount in INR
+    currency: str = "INR"
+
+class PaymentVerifyRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
 
 # --- Routes ---
 
@@ -396,6 +411,44 @@ async def get_my_bookings(request: Request, user_token: dict = Depends(verify_to
         b["_id"] = str(b["_id"])
         
     return {"bookings": bookings}
+
+# --- Payment Routes ---
+
+@app.post("/payment_order")
+@limiter.limit("10/minute")
+async def create_payment_order(request: Request, order_req: PaymentOrderRequest, user_token: dict = Depends(verify_token)):
+    """
+    Step 1: Create a Razorpay Order
+    """
+    try:
+        # Amount is multiplied by 100 to convert to Paisa (Razorpay requirement)
+        data = {
+            "amount": order_req.amount * 100,
+            "currency": order_req.currency,
+            "receipt": f"receipt_{random.randint(1000, 9999)}",
+            "payment_capture": 1 # Auto-capture
+        }
+        order = rzp_client.order.create(data=data)
+        return order
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Razorpay Order Error: {str(e)}")
+
+@app.post("/payment_verify")
+@limiter.limit("10/minute")
+async def verify_payment(request: Request, verify_req: PaymentVerifyRequest, user_token: dict = Depends(verify_token)):
+    """
+    Step 2: Verify Razorpay Signature
+    """
+    try:
+        params_dict = {
+            'razorpay_order_id': verify_req.razorpay_order_id,
+            'razorpay_payment_id': verify_req.razorpay_payment_id,
+            'razorpay_signature': verify_req.razorpay_signature
+        }
+        rzp_client.utility.verify_payment_signature(params_dict)
+        return {"status": "success", "message": "Payment verified successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
 
 @app.post("/cancel_tkt")
 @limiter.limit("5/minute")
