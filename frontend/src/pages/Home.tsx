@@ -490,8 +490,8 @@ const Home = () => {
                 </div>
               </div>
             ) : activeTab === 'pnr' ? (
-              <div className="pnr-search-container" style={{ padding: '20px 0' }}>
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <div className="pnr-search-container search-form-container">
+                <div className="search-row">
                   <div className="input-group" style={{ flex: 1, minWidth: '200px' }}>
                     <label>Enter 10-digit PNR</label>
                     <input 
@@ -503,10 +503,9 @@ const Home = () => {
                     />
                   </div>
                   <button 
-                    className="btn btn-primary" 
+                    className="btn btn-primary search-action-btn" 
                     onClick={checkPnrStatus}
                     disabled={pnrLoading}
-                    style={{ height: '52px', alignSelf: 'flex-end', padding: '0 32px' }}
                   >
                     {pnrLoading ? 'Checking...' : 'Check Status'}
                   </button>
@@ -559,8 +558,8 @@ const Home = () => {
                 )}
               </div>
             ) : (
-              <div className="chart-search-container" style={{ padding: '20px 0' }}>
-                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              <div className="chart-search-container search-form-container">
+                <div className="chart-form-row">
                   <div className="input-group" style={{ flex: 2, minWidth: '200px' }}>
                     <label>Train Number / Name</label>
                     <input 
@@ -581,10 +580,9 @@ const Home = () => {
                     />
                   </div>
                   <button 
-                    className="btn btn-primary" 
+                    className="btn btn-primary search-action-btn" 
                     onClick={getChartStatus}
                     disabled={chartLoading}
-                    style={{ height: '52px', alignSelf: 'flex-end', padding: '0 32px' }}
                   >
                     {chartLoading ? 'Analyzing...' : 'Get Vacancy Chart'}
                   </button>
@@ -626,28 +624,43 @@ const Home = () => {
                     )}
 
                     {selectedCoach && (
-                      <div className="seat-map-wrapper">
+                      <>
+                        {/* Premium Coach Legend */}
+                        <div className="seat-map-legend">
+                          <div className="legend-item">
+                            <span className="legend-dot available"></span>
+                            <span className="legend-text">Available</span>
+                          </div>
+                          <div className="legend-item">
+                            <span className="legend-dot occupied"></span>
+                            <span className="legend-text">Booked</span>
+                          </div>
+                        </div>
+
+                        <div className="seat-map-wrapper">
                         <div className="seat-grid">
                           {Array.from({ 
-                            length: Math.ceil(selectedCoach.seats.length / (selectedCoach.class_name === '2AC' ? 6 : 8))
+                            length: Math.ceil(selectedCoach.seats.length / 8)
                           }).map((_, bayIdx) => {
-                            const baySize = selectedCoach.class_name === '2AC' ? 6 : 8;
-                            const mainSize = selectedCoach.class_name === '2AC' ? 4 : 6;
+                            const baySize = 8;
+                            const mainSize = 6;
                             const baySeats = selectedCoach.seats.slice(bayIdx * baySize, bayIdx * baySize + baySize);
                             
                             return (
                               <div key={bayIdx} className="bay">
-                                <div className="bay-label">Bay {bayIdx + 1}</div>
-                                <div className={`bay-section ${selectedCoach.class_name === '2AC' ? 'ac2' : ''}`}>
-                                  <div className={`main-bay ${selectedCoach.class_name === '2AC' ? 'ac2' : ''}`}>
+                                 <div className="bay-label">
+                                   Cabin {bayIdx + 1} <span style={{ margin: '0 8px', color: '#cbd5e1' }}>•</span> Seats {bayIdx * baySize + 1} - {bayIdx * baySize + baySeats.length}
+                                 </div>
+                                <div className="bay-section">
+                                  <div className="main-bay">
                                     {baySeats.slice(0, mainSize).map((s: any) => (
                                       <div 
-                                        key={s.number} 
+                                        key={s.num} 
                                         className={`seat-box ${s.is_occupied ? 'occupied' : 'available'}`}
-                                        title={`${s.berth_type} - ${s.is_occupied ? 'Occupied' : 'Vacant'}`}
+                                        title={`${s.type} - ${s.is_occupied ? 'Occupied' : 'Vacant'}`}
                                       >
-                                        <span className="s-num">{s.number}</span>
-                                        <span className="s-type">{s.berth_type}</span>
+                                        <span className="s-num">{s.num}</span>
+                                        <span className="s-type">{s.type}</span>
                                       </div>
                                     ))}
                                   </div>
@@ -655,12 +668,12 @@ const Home = () => {
                                   <div className="side-bay">
                                     {baySeats.slice(mainSize).map((s: any) => (
                                       <div 
-                                        key={s.number} 
+                                        key={s.num} 
                                         className={`seat-box ${s.is_occupied ? 'occupied' : 'available'}`}
-                                        title={`${s.berth_type} - ${s.is_occupied ? 'Occupied' : 'Vacant'}`}
+                                        title={`${s.type} - ${s.is_occupied ? 'Occupied' : 'Vacant'}`}
                                       >
-                                        <span className="s-num">{s.number}</span>
-                                        <span className="s-type">{s.berth_type}</span>
+                                        <span className="s-num">{s.num}</span>
+                                        <span className="s-type">{s.type}</span>
                                       </div>
                                     ))}
                                   </div>
@@ -670,7 +683,8 @@ const Home = () => {
                           })}
                         </div>
                       </div>
-                    )}
+                    </>
+                  )}
                   </motion.div>
                 )}
               </div>
