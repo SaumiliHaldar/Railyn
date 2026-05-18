@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import mqtt from "mqtt";
 import Ticket from "../components/Ticket";
 import { formatDate } from "../utils/dateUtils";
+import dashboardHero from "../assets/dashboard_hero.png";
 
 const API_URL  = import.meta.env.VITE_API_URL;
 const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
@@ -225,7 +226,7 @@ const Dashboard = () => {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 1.2, ease: "easeOut" }}
             className="panoramic-img"
-            style={{ backgroundImage: "url('/src/assets/dashboard_hero.png')" }}
+            style={{ backgroundImage: `url(${dashboardHero})` }}
           />
           <div className="panoramic-overlay" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7))' }} />
           <div className="panoramic-content" style={{ paddingBottom: '40px' }}>
