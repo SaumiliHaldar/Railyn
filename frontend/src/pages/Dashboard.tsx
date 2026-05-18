@@ -75,7 +75,7 @@ const Dashboard = () => {
         activeFilter === "ALL" || 
         (activeFilter === "CNF" && b.status === "CNF") ||
         (activeFilter === "WL"  && b.status === "WL") ||
-        (activeFilter === "CANCELLED" && b.status === "CANCELLED");
+        (activeFilter === "CANCELLED" && (b.status === "CANCELLED" || b.status === "CANCELLED_SWAPPED"));
 
       return matchesSearch && matchesFilter;
     });
@@ -323,10 +323,12 @@ const Dashboard = () => {
             <motion.div variants={listVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <AnimatePresence mode='popLayout'>
                 {filteredBookings.map(b => (
-                  <motion.div key={b._id} layout variants={cardVariants} exit={{ opacity: 0, scale: 0.98 }} className={`ticket-card ${b.status === "CANCELLED" ? "cancelled" : "completed"}`}>
+                  <motion.div key={b._id} layout variants={cardVariants} exit={{ opacity: 0, scale: 0.98 }} className={`ticket-card ${(b.status === "CANCELLED" || b.status === "CANCELLED_SWAPPED") ? "cancelled" : "completed"}`}>
                     <div className="ticket-content">
                       <div className="ticket-header-row">
-                        <div className="ticket-badge" data-status={b.status}>{b.status || 'RES'}</div>
+                        <div className="ticket-badge" data-status={b.status}>
+                          {b.status === "CANCELLED_SWAPPED" ? "CANCELLED" : (b.status || 'RES')}
+                        </div>
                         <div className="ticket-pnr">PNR: <strong>{b.pnr}</strong></div>
                       </div>
                       
@@ -350,7 +352,7 @@ const Dashboard = () => {
                     <div className="ticket-divider"></div>
                     
                     <div className="ticket-actions">
-                      {b.status !== "CANCELLED" && new Date(b.travel_date) > new Date() ? (
+                      {b.status !== "CANCELLED" && b.status !== "CANCELLED_SWAPPED" && new Date(b.travel_date) > new Date() ? (
                         <button className="action-btn" onClick={() => handleCancelInit(b)}>Cancel</button>
                       ) : (
                         <button className="action-btn" onClick={() => handleBookAgain(b)}>Book Again</button>

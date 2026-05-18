@@ -81,7 +81,7 @@ const Ticket: React.FC<TicketProps> = ({
             </div>
           </div>
           <div className="status-badge" data-status={status} style={{ margin: 0, flexShrink: 0 }}>
-            {status || 'PENDING'}
+            {status === "CANCELLED_SWAPPED" ? "CANCELLED" : (status || 'PENDING')}
           </div>
         </div>
         

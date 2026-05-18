@@ -1540,8 +1540,10 @@ body {
 }
 
 .ticket-badge[data-status="CANCELLED"],
+.ticket-badge[data-status="CANCELLED_SWAPPED"],
 .ticket-badge[data-status="CAN"],
 .status-badge[data-status="CANCELLED"],
+.status-badge[data-status="CANCELLED_SWAPPED"],
 .status-badge[data-status="CAN"] {
   background: #FEE2E2 !important;
   color: #991B1B !important;
