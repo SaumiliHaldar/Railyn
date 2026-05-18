@@ -1,5 +1,5 @@
 import { useAuth, useUser } from "@clerk/clerk-react";
-import { Search, MapPin, Calendar, Train, Clock, X } from "lucide-react";
+import { Search, MapPin, Calendar, Train, Clock, X, Star, Trash2 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -69,7 +69,28 @@ interface Passenger {
   name: string;
   age: string;
   gender: string;
+  isCustom?: boolean;
 }
+
+const getRunsOnDays = (trainNumber: string): boolean[] => {
+  // Deterministic schedule based on train number digits
+  const digitsSum = trainNumber.split('').reduce((sum, ch) => sum + (parseInt(ch, 10) || 0), 0);
+  
+  // Weekly running configurations (true means active day, index 0 is Monday, index 6 is Sunday)
+  const patterns = [
+    [true, true, true, true, true, true, true],     // Daily
+    [true, true, true, true, true, true, false],    // Except Sunday
+    [true, false, true, false, true, false, false], // Mon, Wed, Fri
+    [false, true, false, true, false, true, false], // Tue, Thu, Sat
+    [false, false, false, false, false, true, true], // Weekend only
+    [true, true, true, true, true, false, false],   // Weekdays only
+    [true, false, false, true, false, false, true], // Mon, Thu, Sun
+  ];
+  
+  // Select pattern deterministically
+  const patternIndex = digitsSum % patterns.length;
+  return patterns[patternIndex];
+};
 
 const Home = () => {
   const [activeTab, setActiveTab] = useState("book");
@@ -93,6 +114,8 @@ const Home = () => {
   const [selectedTrain, setSelectedTrain] = useState<TrainData | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [passengers, setPassengers] = useState<Passenger[]>([{ name: "", age: "", gender: "Male" }]);
+  const [savedPassengers, setSavedPassengers] = useState<any[]>([]);
+  const [savingPassengerIndex, setSavingPassengerIndex] = useState<number | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState<BookingData | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [pnrInput, setPnrInput] = useState("");
@@ -135,6 +158,103 @@ const Home = () => {
     if (t) setToStn(t);
     if (d) setDate(d);
   }, [user]);
+
+  const fetchSavedPassengers = async (skipReset = false) => {
+    if (!user) {
+      if (!skipReset) setPassengers([{ name: "", age: "", gender: "Male", isCustom: true }]);
+      return;
+    }
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/saved_passengers`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      const list = data.passengers || [];
+      setSavedPassengers(list);
+      if (!skipReset) {
+        if (list.length === 0) {
+          setPassengers([{ name: "", age: "", gender: "Male", isCustom: true }]);
+        } else {
+          setPassengers([]); // Clear list so user can check cards to add them
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching saved passengers:", err);
+      if (!skipReset) setPassengers([{ name: "", age: "", gender: "Male", isCustom: true }]);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedTrain && user) {
+      fetchSavedPassengers();
+    }
+  }, [selectedTrain, user]);
+
+  useEffect(() => {
+    if (!selectedTrain) {
+      setPassengers([{ name: "", age: "", gender: "Male", isCustom: true }]);
+    }
+  }, [selectedTrain]);
+
+  const toggleSavedPassenger = (sp: any) => {
+    const isAlreadyAdded = passengers.some(p => p.name.trim().toLowerCase() === sp.name.trim().toLowerCase() && !p.isCustom);
+    if (isAlreadyAdded) {
+      setPassengers(prev => prev.filter(p => p.name.trim().toLowerCase() !== sp.name.trim().toLowerCase() || p.isCustom));
+    } else {
+      setPassengers(prev => [...prev, { name: sp.name, age: String(sp.age), gender: sp.gender, isCustom: false }]);
+    }
+  };
+
+  const toggleSaveToProfile = async (passenger: Passenger, index: number) => {
+    if (!user) return showToast("Please login to save passengers", "warning");
+    if (!passenger.name.trim() || !passenger.age) {
+      return showToast("Name and Age are required to save", "error");
+    }
+
+    setSavingPassengerIndex(index);
+    const isSaved = savedPassengers.some(sp => sp.name.trim().toLowerCase() === passenger.name.trim().toLowerCase());
+    const token = await getToken();
+
+    try {
+      if (isSaved) {
+        const res = await fetch(`${API_URL}/saved_passengers/${encodeURIComponent(passenger.name.trim())}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          showToast(`Removed ${passenger.name} from saved list`, "success");
+          await fetchSavedPassengers(true);
+        } else {
+          showToast("Failed to remove passenger", "error");
+        }
+      } else {
+        const res = await fetch(`${API_URL}/saved_passengers`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: passenger.name.trim(),
+            age: parseInt(passenger.age),
+            gender: passenger.gender
+          })
+        });
+        if (res.ok) {
+          showToast(`Saved ${passenger.name} to profile`, "success");
+          await fetchSavedPassengers(true);
+        } else {
+          showToast("Failed to save passenger", "error");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Error updating saved passenger status", "error");
+    } finally {
+      setSavingPassengerIndex(null);
+    }
+  };
 
   const handleStationSearch = async (query: string, setSuggestions: React.Dispatch<React.SetStateAction<Station[]>>) => {
     if (query.length < 2) {
@@ -641,8 +761,31 @@ const Home = () => {
                       </span>
                     ))}
                   </div>
-                  <div style={{ display: 'flex', gap: '12px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>
-                    <span>Runs On: M T W T F S S</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
+                    <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>Runs On:</span>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, dIdx) => {
+                        const runs = getRunsOnDays(train.train_number)[dIdx];
+                        return (
+                          <span 
+                            key={dIdx} 
+                            style={{ 
+                              color: runs ? '#1e293b' : '#cbd5e1', 
+                              background: runs ? '#f1f5f9' : 'transparent',
+                              borderRadius: '4px',
+                              width: '18px',
+                              height: '18px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '10px'
+                            }}
+                          >
+                            {day}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -733,51 +876,155 @@ const Home = () => {
                     <button className="close-btn" onClick={() => setSelectedTrain(null)}><X /></button>
                   </div>
 
-                  <div className="modal-body" style={{ maxHeight: '45vh', overflowY: 'auto', padding: '20px 24px' }}>
+                  <div className="modal-body" style={{ maxHeight: '55vh', overflowY: 'auto', padding: '20px 24px' }}>
+                    {/* Select Travelling Passengers Grid */}
+                    {user && savedPassengers.length > 0 && (
+                      <div className="saved-passengers-selection" style={{ marginBottom: '24px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '12px', letterSpacing: '0.5px' }}>
+                          Select Travelling Passengers
+                        </label>
+                        <div className="passenger-select-grid">
+                          {savedPassengers.map((sp) => {
+                            const isSelected = passengers.some(p => p.name.trim().toLowerCase() === sp.name.trim().toLowerCase() && !p.isCustom);
+                            return (
+                              <div 
+                                key={sp.name} 
+                                className={`passenger-select-card ${isSelected ? 'active' : ''}`}
+                                onClick={() => toggleSavedPassenger(sp)}
+                              >
+                                <div className="card-checkbox-wrapper">
+                                  <div className={`custom-checkbox ${isSelected ? 'checked' : ''}`}>
+                                    {isSelected && <span className="checkmark">✓</span>}
+                                  </div>
+                                </div>
+                                <div className="card-info">
+                                  <div className="card-name">{sp.name}</div>
+                                  <div className="card-meta">{sp.age} Yrs • {sp.gender}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Custom / New Passengers Section */}
                     <div className="passenger-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {passengers.map((p, i) => (
-                        <motion.div 
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          key={i} 
-                          className="passenger-row"
-                          style={{ background: '#f9fafb', padding: '16px', borderRadius: '12px', position: 'relative', border: '1px solid #eee' }}
-                        >
-                          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 0.6fr 1fr', gap: '12px' }}>
-                            <div className="input-group">
-                              <label style={{ fontSize: '10px' }}>Name</label>
-                              <input type="text" value={p.name} onChange={(e) => {
-                                const newP = [...passengers];
-                                newP[i].name = e.target.value;
-                                setPassengers(newP);
-                              }} style={{ background: 'white', padding: '10px 12px' }} />
+                      {user && savedPassengers.length > 0 && (
+                        <label style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginTop: '4px', marginBottom: '4px', letterSpacing: '0.5px' }}>
+                          Additional / New Passengers
+                        </label>
+                      )}
+
+                      {passengers.map((p, i) => {
+                        // Render standard inputs for:
+                        // 1. All passengers if no saved profiles exist
+                        // 2. Only passengers marked as isCustom if saved profiles exist
+                        const shouldRenderInput = !user || savedPassengers.length === 0 || p.isCustom;
+                        if (!shouldRenderInput) return null;
+
+                        const isSaved = savedPassengers.some(sp => sp.name.trim().toLowerCase() === p.name.trim().toLowerCase());
+                        
+                        return (
+                          <motion.div 
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            key={i} 
+                            className="passenger-row"
+                            style={{ background: '#f9fafb', padding: '16px', borderRadius: '12px', position: 'relative', border: '1px solid #eee' }}
+                          >
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 0.6fr 1fr auto', gap: '12px' }}>
+                              <div className="input-group">
+                                <label style={{ fontSize: '10px' }}>Name</label>
+                                <input type="text" value={p.name} onChange={(e) => {
+                                  const newP = [...passengers];
+                                  newP[i].name = e.target.value;
+                                  setPassengers(newP);
+                                }} style={{ background: 'white', padding: '10px 12px' }} />
+                              </div>
+                              <div className="input-group">
+                                <label style={{ fontSize: '10px' }}>Age</label>
+                                <input type="number" value={p.age} onChange={(e) => {
+                                  const newP = [...passengers];
+                                  newP[i].age = e.target.value;
+                                  setPassengers(newP);
+                                }} style={{ background: 'white', padding: '10px 12px' }} />
+                              </div>
+                              <div className="input-group">
+                                <label style={{ fontSize: '10px' }}>Gender</label>
+                                <select value={p.gender} onChange={(e) => {
+                                  const newP = [...passengers];
+                                  newP[i].gender = e.target.value;
+                                  setPassengers(newP);
+                                }} style={{ background: 'white', padding: '10px', borderRadius: '10px', border: '1px solid #e0e0e0', fontSize: '13px' }}>
+                                  <option>Male</option>
+                                  <option>Female</option>
+                                  <option>Other</option>
+                                </select>
+                              </div>
+                              
+                              <div className="passenger-row-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingTop: '16px' }}>
+                                {user && p.name.trim() && (
+                                  <button
+                                    className="action-icon-btn star-btn"
+                                    onClick={() => toggleSaveToProfile(p, i)}
+                                    disabled={savingPassengerIndex === i}
+                                    title={isSaved ? "Remove from Saved" : "Save to Profile"}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: '6px',
+                                      borderRadius: '50%',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: isSaved ? '#eab308' : '#94a3b8',
+                                      transition: 'all 0.2s ease',
+                                    }}
+                                  >
+                                    <Star 
+                                      size={18} 
+                                      fill={isSaved ? '#eab308' : 'none'} 
+                                      className={savingPassengerIndex === i ? 'pulse' : ''}
+                                    />
+                                  </button>
+                                )}
+                                
+                                <button
+                                  className="action-icon-btn trash-btn"
+                                  onClick={() => {
+                                    setPassengers(prev => prev.filter((_, idx) => idx !== i));
+                                  }}
+                                  title="Remove Passenger"
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: '6px',
+                                    borderRadius: '50%',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#ef4444',
+                                    transition: 'all 0.2s ease',
+                                  }}
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
                             </div>
-                            <div className="input-group">
-                              <label style={{ fontSize: '10px' }}>Age</label>
-                              <input type="number" value={p.age} onChange={(e) => {
-                                const newP = [...passengers];
-                                newP[i].age = e.target.value;
-                                setPassengers(newP);
-                              }} style={{ background: 'white', padding: '10px 12px' }} />
-                            </div>
-                            <div className="input-group">
-                              <label style={{ fontSize: '10px' }}>Gender</label>
-                              <select value={p.gender} onChange={(e) => {
-                                const newP = [...passengers];
-                                newP[i].gender = e.target.value;
-                                setPassengers(newP);
-                              }} style={{ background: 'white', padding: '10px', borderRadius: '10px', border: '1px solid #e0e0e0', fontSize: '13px' }}>
-                                <option>Male</option>
-                                <option>Female</option>
-                                <option>Other</option>
-                              </select>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
+                          </motion.div>
+                        );
+                      })}
                     </div>
-                    <button className="add-btn" onClick={() => setPassengers([...passengers, { name: "", age: "", gender: "Male" }])} style={{ marginTop: '12px', background: 'none', border: '1px dashed #ccc', width: '100%', padding: '10px', borderRadius: '10px', fontSize: '13px', color: '#666', fontWeight: 600, cursor: 'pointer' }}>
-                      + Add Passenger
+                    
+                    <button 
+                      className="add-btn" 
+                      onClick={() => setPassengers([...passengers, { name: "", age: "", gender: "Male", isCustom: true }])} 
+                      style={{ marginTop: '12px', background: 'none', border: '1px dashed #ccc', width: '100%', padding: '10px', borderRadius: '10px', fontSize: '13px', color: '#666', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      + Add New Passenger
                     </button>
                   </div>
 

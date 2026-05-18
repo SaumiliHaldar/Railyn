@@ -170,6 +170,7 @@ class DelayRequest(BaseModel):
 
 class SwapRequest(BaseModel):
     old_booking_id: str
+    new_train_number: str
 
 # ── Pricing Utility ──────────────────────────────────────────
 CLASS_MULTIPLIERS = {
@@ -184,13 +185,17 @@ BASE_RATE = 0.65 # INR per KM
 def calculate_fare(dist, cls, train_type="Express", age=30):
     res = pricing.FareEngine.calculate_fare(dist, cls, train_type, age)
     return res["total"]
-    new_train_number: str
 
 class UserRequest(BaseModel):
     email: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     image_url: Optional[str] = None
+
+class SavedPassengerRequest(BaseModel):
+    name: str
+    age: int
+    gender: str
 
 class PaymentOrderRequest(BaseModel):
     amount: int # Amount in INR
@@ -487,6 +492,60 @@ async def register_user(request: Request, user: UserRequest, user_token: dict = 
         upsert=True
     )
     return {"message": "User details synced to database"}
+
+@app.get("/saved_passengers")
+@limiter.limit("20/minute")
+async def get_saved_passengers(request: Request, user_token: dict = Depends(verify_token)):
+    db = request.app.state.db
+    user_id = user_token.get("sub")
+    user_doc = await db.users.find_one({"user_id": user_id}, {"saved_passengers": 1, "_id": 0})
+    passengers = (user_doc or {}).get("saved_passengers", [])
+    return {"passengers": passengers}
+
+@app.post("/saved_passengers")
+@limiter.limit("20/minute")
+async def save_passenger(request: Request, passenger: SavedPassengerRequest, user_token: dict = Depends(verify_token)):
+    db = request.app.state.db
+    user_id = user_token.get("sub")
+    
+    # Clean the name: strip leading/trailing spaces
+    clean_name = passenger.name.strip()
+    if not clean_name:
+        raise HTTPException(status_code=400, detail="Passenger name cannot be empty")
+    
+    # Pull existing passenger with the same name (case-insensitive search inside the array is a bit tricky, but an exact name match is solid. Let's do a case-insensitive pull using exact regex match if possible, or simple case-sensitive pull. A case-sensitive pull on clean_name is safe and standard).
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$pull": {"saved_passengers": {"name": clean_name}}}
+    )
+    
+    # Push the new/updated passenger details
+    new_pax = {
+        "name": clean_name,
+        "age": passenger.age,
+        "gender": passenger.gender
+    }
+    
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$push": {"saved_passengers": new_pax}},
+        upsert=True
+    )
+    return {"message": "Passenger details saved successfully", "passenger": new_pax}
+
+@app.delete("/saved_passengers/{name}")
+@limiter.limit("20/minute")
+async def delete_saved_passenger(request: Request, name: str, user_token: dict = Depends(verify_token)):
+    db = request.app.state.db
+    user_id = user_token.get("sub")
+    
+    result = await db.users.update_one(
+        {"user_id": user_id},
+        {"$pull": {"saved_passengers": {"name": name}}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Passenger not found in saved list")
+    return {"message": "Passenger deleted successfully"}
 
 @app.get("/my_bookings")
 @limiter.limit("20/minute")
