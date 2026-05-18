@@ -1,5 +1,6 @@
 import os
 import json
+import multiprocessing
 import numpy as np
 from multiprocessing import shared_memory
 from dotenv import load_dotenv
@@ -86,4 +87,28 @@ def cleanup():
         except FileNotFoundError:
             pass
         _shm = None
+
+
+# Process and Thread Lock for synchronization
+_shm_lock = multiprocessing.Lock()
+
+def reserve_seats_atomic(train_number, class_type, num_passengers):
+    """
+    Thread-safe and process-safe seat allocation.
+    Performs the check and reservation atomically.
+    Returns a tuple: (success: bool, remaining_seats: int)
+    """
+    if train_number not in _train_to_idx or class_type not in CLASSES:
+        return False, 0
+    
+    idx = _train_to_idx[train_number]
+    cls_idx = CLASSES.index(class_type)
+    
+    with _shm_lock:
+        current_seats = int(_inventory_array[idx, cls_idx])
+        if current_seats >= num_passengers:
+            _inventory_array[idx, cls_idx] -= num_passengers
+            new_seats = int(_inventory_array[idx, cls_idx])
+            return True, new_seats
+        return False, current_seats
 

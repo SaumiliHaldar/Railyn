@@ -458,8 +458,12 @@ body {
 }
 
 .search-btn:hover {
-  transform: scale(1.1) rotate(5deg);
-  box-shadow: 0 10px 20px var(--primary-glow);
+  background: var(--secondary);
+  box-shadow: 0 10px 25px var(--primary-glow);
+}
+
+.search-btn:active {
+  transform: scale(0.98);
 }
 
 .search-btn svg {

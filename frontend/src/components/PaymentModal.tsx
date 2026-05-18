@@ -61,31 +61,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         description: `Booking for ${selectedTrain.train_name}`,
         order_id: orderData.id,
         handler: async (response: any) => {
-          // Step 3: Verify Signature
-          const verifyRes = await fetch(`${apiUrl}/payment_verify`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
-            })
-          });
-
-          if (verifyRes.ok) {
-            // Step 4: Finalize Booking
-            try {
-              await finalizeBooking(token, response.razorpay_payment_id);
-              showToast("Payment verified successfully!", "success");
-            } catch (err: any) {
-              showToast(err.message || "Failed to finalize booking!", "error");
-            }
-          } else {
-            showToast("Payment verification failed!", "error");
-            setIsProcessing(false);
+          // Step 3: Unified Secure Transaction Flow: Cryptographic signatures are sent to book_tkt for verification
+          try {
+            await finalizeBooking(
+              token,
+              response.razorpay_order_id,
+              response.razorpay_payment_id,
+              response.razorpay_signature
+            );
+            showToast("Payment verified and booking confirmed successfully!", "success");
+          } catch (err: any) {
+            showToast(err.message || "Failed to finalize booking!", "error");
           }
         },
         prefill: {
@@ -105,7 +91,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
-  const finalizeBooking = async (token: string | null, paymentId?: string) => {
+  const finalizeBooking = async (
+    token: string | null,
+    orderId?: string,
+    paymentId?: string,
+    signature?: string
+  ) => {
     try {
       const res = await fetch(`${apiUrl}/book_tkt`, {
         method: 'POST',
@@ -130,7 +121,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           user_name: user.fullName,
           user_email: user.primaryEmailAddress?.emailAddress,
           total_fare: totalFare,
-          razorpay_payment_id: paymentId
+          razorpay_order_id: orderId,
+          razorpay_payment_id: paymentId,
+          razorpay_signature: signature
         })
       });
       const data = await res.json();
