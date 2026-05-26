@@ -1,0 +1,35 @@
+<h2 style="margin-top: 0; font-size: 20px; color: #991b1b; font-weight: 700; border-bottom: 1px solid #fecaca; padding-bottom: 12px;">Ticket Cancellation Receipt</h2>
+<p style="font-size: 14px; line-height: 1.6; color: #334155;">Your ticket cancellation transaction is successfully completed. Below is the confirmation detail and refund breakdown.</p>
+
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0; background-color: #fff5f5; border: 1px solid #fecaca; border-radius: 8px; font-size: 13px;">
+  <tr><td style="padding: 10px; color: #991b1b; width: 120px;"><strong>PNR:</strong></td><td style="padding: 10px; color: #0f172a; font-weight: bold;">{pnr}</td></tr>
+  <tr><td style="padding: 10px; color: #64748b;"><strong>Train details:</strong></td><td style="padding: 10px; color: #0f172a;">{train_number} - {train_name}</td></tr>
+  <tr><td style="padding: 10px; color: #64748b;"><strong>Date of Journey:</strong></td><td style="padding: 10px; color: #0f172a;">{travel_date}</td></tr>
+</table>
+
+<h4 style="margin: 25px 0 10px 0; color: #991b1b; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Cancelled Passenger Manifest</h4>
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #fecaca; border-radius: 6px; overflow: hidden;">
+  <thead>
+    <tr style="background-color: #fff5f5; text-align: left; font-size: 11px; color: #991b1b; font-weight: 700; border-bottom: 2px solid #fca5a5;">
+      <th style="padding: 10px;">#</th><th style="padding: 10px;">PASSENGER NAME</th><th style="padding: 10px;">STATUS</th><th style="padding: 10px;">REFUND STATUS</th>
+    </tr>
+  </thead>
+  <tbody>
+    {passenger_rows}
+  </tbody>
+</table>
+
+<div style="background-color: #f0fdf4; border: 1px solid #dcfce7; border-radius: 8px; padding: 18px; margin-bottom: 20px;">
+  <table style="width: 100%; font-size: 13px; border-collapse: collapse; line-height: 1.8;">
+    <tr><td style="color: #334155;">Original Fare Paid:</td><td style="text-align: right; font-weight: bold;">₹{original_fare}.00</td></tr>
+    <tr><td style="color: #334155;">Cancellation Fee (Railyn Rules):</td><td style="text-align: right; color: #dc2626; font-weight: bold;">- ₹{cancellation_fee}.00</td></tr>
+    <tr style="border-top: 1px dashed #dcfce7; font-size: 16px; font-weight: bold; color: #166534;">
+      <td style="padding-top: 10px;">Refund Amount Approved:</td>
+      <td style="padding-top: 10px; text-align: right; font-size: 20px;">₹{refund_amount}.00</td>
+    </tr>
+  </table>
+</div>
+
+<div style="background-color: #f8fafc; padding: 12px; border-radius: 8px; font-size: 11px; line-height: 1.5; color: #64748b; border: 1px solid #e2e8f0; text-align: center;">
+  <strong>🏦 Refund Processing:</strong> The refund amount will be credited back to your **Razorpay source account** in 3-5 bank working days. Txn Ref ID: <strong>{razorpay_payment_id}</strong>
+</div>

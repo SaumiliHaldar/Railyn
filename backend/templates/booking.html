@@ -1,0 +1,35 @@
+<div style="background-color: transparent; border-left: 5px solid transparent; padding: 15px; border-radius: 6px; margin-bottom: 25px;">
+  <h3 style="margin: 0; font-size: 15px; color: black; font-weight: 700;">{status_label}</h3>
+  <p style="margin: 5px 0 0 0; font-size: 13px; color: #334155;">Your e-ticket has been confirmed! An official E-Ticket reservation slip (PDF) is attached to this mail.</p>
+</div>
+
+<h4 style="margin: 0 0 12px 0; color: #1E6F2B; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">PNR Details & Summary</h4>
+<div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px; background-color: #f8fafc; margin-bottom: 20px; font-size: 14px;">
+  <div style="font-size: 16px; font-weight: 800; color: #1E6F2B; margin-bottom: 8px;">{train_number} - {train_name}</div>
+  <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+    <tr><td style="padding: 4px 0; color: #64748b; width: 100px;">Route:</td><td><strong>{from_stn} ➔ {to_stn}</strong></td></tr>
+    <tr><td style="padding: 4px 0; color: #64748b;">Date:</td><td><strong>{travel_date}</strong></td></tr>
+    <tr><td style="padding: 4px 0; color: #64748b;">Class:</td><td><strong style="background-color: #cbd5e1; color:#0f172a; padding: 2px 6px; border-radius: 4px; font-size: 11px;">{class_type}</strong></td></tr>
+    <tr><td style="padding: 4px 0; color: #64748b;">PNR Code:</td><td><strong style="color: #1E6F2B;">{pnr}</strong></td></tr>
+  </table>
+</div>
+
+<h4 style="margin: 20px 0 10px 0; color: #1E6F2B; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Passenger Allocations</h4>
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #cbd5e1; overflow: hidden; border-radius: 6px;">
+  <thead>
+    <tr style="background-color: #f1f5f9; text-align: left; font-size: 11px; color: #475569; font-weight: 700; border-bottom: 2px solid #cbd5e1;">
+      <th style="padding: 10px;">#</th>
+      <th style="padding: 10px;">NAME</th>
+      <th style="padding: 10px;">AGE/GENDER</th>
+      <th style="padding: 10px;">SEAT & COACH</th>
+      <th style="padding: 10px;">STATUS</th>
+    </tr>
+  </thead>
+  <tbody>
+    {passenger_rows}
+  </tbody>
+</table>
+
+<div style="background-color: #fffbeb; border: 1px solid #fef3c7; padding: 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; color: #b45309; text-align: center;">
+  <strong>Verify Identity:</strong> Carry an original government-approved photo ID card during your journey for conductor charts check.
+</div>

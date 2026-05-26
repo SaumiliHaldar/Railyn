@@ -23,6 +23,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import mqtt_engine, shared_mem, pricing
 import razorpay
+from mailer import trigger_email
 from bson.objectid import ObjectId
 
 load_dotenv()
@@ -448,6 +449,8 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
         "to_stn": booking.to_stn,
         "departure": booking.departure,
         "arrival": booking.arrival,
+        "duration_h": train.get("duration_h"),  # Actual journey duration from DB
+        "duration_m": train.get("duration_m"),
         "travel_date": booking.travel_date,
         "class_type": booking.class_type,
         "passengers": assigned_passengers,
@@ -460,6 +463,28 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
     
     result = await db.bookings.insert_one(booking_record)
     
+    # Trigger Non-blocking Booking Confirmation Email + PDF ERS Attachment
+    await trigger_email("BOOKING", booking.user_email or "passenger@railyn.co", {
+        "user_name": booking.user_name or "Valued Passenger",
+        "pnr": pnr,
+        "train_number": booking.train_number,
+        "train_name": booking.train_name,
+        "from_stn": booking.from_stn,
+        "to_stn": booking.to_stn,
+        "departure": booking.departure,
+        "arrival": booking.arrival,
+        "travel_date": booking.travel_date,
+        "class_type": booking.class_type,
+        "status": status,
+        "wl_position": wl_position if status == "WL" else 0,
+        "total_fare": recalculated_fare,
+        "razorpay_payment_id": booking.razorpay_payment_id,
+        "passengers": [
+            {"name": p["name"], "age": p["age"], "gender": p.get("gender", "Male"), "coach": p.get("coach"), "seat": p.get("seat"), "status": p.get("status")}
+            for p in assigned_passengers
+        ]
+    })
+
     return {
         "booking_id": str(result.inserted_id),
         "booking": {
@@ -557,9 +582,24 @@ async def get_my_bookings(request: Request, user_token: dict = Depends(verify_to
     cursor = db.bookings.find({"user_id": user_id})
     bookings = await cursor.to_list(length=100)
     
-    # Convert ObjectId to string for JSON serialization
+    # Collect train numbers for bookings missing duration fields (legacy records)
+    missing_duration = [b["train_number"] for b in bookings if b.get("duration_h") is None]
+    train_duration_map = {}
+    if missing_duration:
+        train_cursor = db.trains.find(
+            {"number": {"$in": missing_duration}},
+            {"number": 1, "duration_h": 1, "duration_m": 1, "_id": 0}
+        )
+        trains = await train_cursor.to_list(length=200)
+        train_duration_map = {t["number"]: t for t in trains}
+    
+    # Convert ObjectId to string and backfill duration for legacy bookings
     for b in bookings:
         b["_id"] = str(b["_id"])
+        if b.get("duration_h") is None and b["train_number"] in train_duration_map:
+            t = train_duration_map[b["train_number"]]
+            b["duration_h"] = t.get("duration_h")
+            b["duration_m"] = t.get("duration_m")
         
     return {"bookings": bookings}
 
@@ -657,6 +697,29 @@ async def cancel_ticket(request: Request, cancel_req: CancelRequest, background_
         for _ in range(num_cancelled_now):
             background_tasks.add_task(mqtt_engine.handle_waitlist_upgrade, db, booking["train_number"], booking["class_type"])
             
+    # Calculate refund and cancellation details
+    original_fare = booking.get("total_fare", 0)
+    # Flat fee of ₹120 per cancelled passenger
+    flat_fee_per_passenger = 120
+    cancellation_fee = flat_fee_per_passenger * num_cancelled_now
+    refund_amount = max(0, original_fare - cancellation_fee) if final_status == "CANCELLED" else (original_fare // len(current_passengers)) * num_cancelled_now - cancellation_fee
+    refund_amount = max(0, refund_amount)
+    
+    # Trigger Non-blocking Cancellation & Refund Notification
+    await trigger_email("CANCEL", booking.get("user_email", "passenger@railyn.co"), {
+        "user_name": booking.get("user_name", "Valued Passenger"),
+        "pnr": booking.get("pnr"),
+        "train_number": booking.get("train_number"),
+        "train_name": booking.get("train_name"),
+        "travel_date": booking.get("travel_date"),
+        "class_type": booking.get("class_type"),
+        "cancelled_passengers": pax_to_cancel,
+        "original_fare": original_fare,
+        "cancellation_fee": cancellation_fee,
+        "refund_amount": refund_amount,
+        "razorpay_payment_id": booking.get("razorpay_payment_id", "Wallet Checkout")
+    })
+
     return {"message": f"Successfully cancelled {num_cancelled_now} passenger(s)."}
 
 @app.post("/simulate/delay")
@@ -741,6 +804,25 @@ async def swap_ticket(request: Request, swap_req: SwapRequest, user_token: dict 
     
     res = await db.bookings.insert_one(new_booking)
     
+    # Trigger Non-blocking Swap Alert Notification
+    await trigger_email("SWAP", old_booking.get("user_email", "passenger@railyn.co"), {
+        "user_name": old_booking.get("user_name", "Valued Passenger"),
+        "old_pnr": old_booking.get("pnr"),
+        "old_train_number": old_booking.get("train_number"),
+        "old_train_name": old_booking.get("train_name"),
+        "new_pnr": new_booking.get("pnr"),
+        "new_train_number": swap_req.new_train_number,
+        "new_train_name": new_train["name"],
+        "from_stn": old_booking.get("from_stn"),
+        "to_stn": old_booking.get("to_stn"),
+        "travel_date": old_booking.get("travel_date"),
+        "class_type": old_booking.get("class_type"),
+        "passengers": [
+            {"name": p["name"], "coach": p.get("coach"), "seat": p.get("seat")}
+            for p in new_passengers if p["status"] != "CAN"
+        ]
+    })
+
     return {"message": "Successfully swapped train!", "new_booking_id": str(res.inserted_id)}
 
 # ─── QR Code Generator ────────────────────────────────────────────────────────

@@ -1,0 +1,126 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Railyn E-Ticket Slip</title>
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 25px; color: #333333; }
+    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    .header-logo { color: #1E6F2B; font-size: 32px; font-weight: 800; letter-spacing: 1.5px; }
+    .header-title { text-align: right; font-size: 13px; font-weight: bold; color: #475569; line-height: 1.5; }
+    .section-title { background-color: #1E6F2B; color: #ffffff; padding: 8px 12px; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; border-radius: 4px; letter-spacing: 0.5px; }
+    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; border: 1px solid #cbd5e1; }
+    .info-table td { padding: 8px 10px; border: 1px solid #cbd5e1; vertical-align: middle; }
+    .info-label { font-weight: bold; color: #475569; width: 140px; background-color: #f8fafc; }
+    .manifest-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; border: 1px solid #cbd5e1; }
+    .manifest-table th { background-color: #f1f5f9; padding: 10px 8px; font-weight: bold; border: 1px solid #cbd5e1; color: #334155; text-transform: uppercase; font-size: 11px; }
+    .manifest-table td { padding: 9px 8px; border: 1px solid #cbd5e1; }
+    .terms-box { border: 1px dashed #64748b; padding: 15px; font-size: 10px; color: #475569; line-height: 1.6; background-color: #f8fafc; margin-top: 35px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <table class="header-table">
+    <tr>
+      <td style="width: 50px; vertical-align: middle; padding-right: 15px;">
+        <img src="{logo_src}" alt="Railyn Logo" style="height: 48px; display: block; border-radius: 6px;" />
+      </td>
+      <td class="header-logo" style="vertical-align: middle; text-align: left;">RAILYN</td>
+      <td class="header-title" style="vertical-align: middle;">
+        ELECTRONIC RESERVATION SLIP (ERS)<br/>
+        <span style="font-size: 20px; color: #1E6F2B; font-weight: 800;">PNR: {pnr}</span>
+      </td>
+    </tr>
+  </table>
+  
+  <div style="border-top: 4px solid #fbbf24; margin-bottom: 20px;"></div>
+  
+  <div class="section-title">Journey & Train Details</div>
+  <table class="info-table">
+    <tr>
+      <td class="info-label">Train No & Name:</td>
+      <td><strong>{train_number} - {train_name}</strong></td>
+      <td class="info-label">Date of Journey:</td>
+      <td><strong>{travel_date}</strong></td>
+    </tr>
+    <tr>
+      <td class="info-label">From Station:</td>
+      <td><strong>{from_stn}</strong></td>
+      <td class="info-label">To Station:</td>
+      <td><strong>{to_stn}</strong></td>
+    </tr>
+    <tr>
+      <td class="info-label">Scheduled Dep:</td>
+      <td><strong>{departure}</strong></td>
+      <td class="info-label">Scheduled Arr:</td>
+      <td><strong>{arrival}</strong></td>
+    </tr>
+    <tr>
+      <td class="info-label">Class of Travel:</td>
+      <td><span style="background-color:#F0F7F1; color:#1E6F2B; padding:2px 6px; border-radius:4px; font-weight:bold;">{class_type}</span></td>
+      <td class="info-label">Booked By:</td>
+      <td><strong>{user_name}</strong></td>
+    </tr>
+  </table>
+
+  <div class="section-title">Passenger Manifest (Allocated Seat Status)</div>
+  <table class="manifest-table">
+    <thead>
+      <tr>
+        <th style="width: 45px; text-align: center;">S.No</th>
+        <th style="text-align: left;">Passenger Name</th>
+        <th style="width: 120px; text-align: center;">Age / Gender</th>
+        <th style="width: 140px; text-align: center;">Allocated Berth</th>
+        <th style="width: 120px; text-align: center;">Current Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {passenger_rows}
+    </tbody>
+  </table>
+
+  <div class="section-title">Transaction Details & Verification</div>
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="width: 150px; vertical-align: top; padding-right: 20px;">
+        <div style="border: 1px solid #cbd5e1; padding: 6px; text-align: center; border-radius: 8px; background-color:#ffffff;">
+          <img src="{qr_url}" alt="Ticket QR" style="width: 120px; height: 120px; display: block; margin: 0 auto;" />
+          <div style="font-size: 8px; color: #64748b; margin-top: 5px; font-weight: bold;">Scan to Verify Ticket Offline</div>
+        </div>
+      </td>
+      <td style="vertical-align: top; border-left: 1px dashed #cbd5e1; padding-left: 20px;">
+        <table style="width: 100%; font-size: 13px; border-collapse: collapse; line-height: 1.8;">
+          <tr>
+            <td style="color:#475569;">Ticket Fare:</td>
+            <td style="text-align: right; font-weight: bold;">₹{total_fare}.00</td>
+          </tr>
+          <tr>
+            <td style="color:#475569;">Convenience / PG Fee:</td>
+            <td style="text-align: right; font-weight: bold; color:#1E6F2B;">₹0.00 (Waived)</td>
+          </tr>
+          <tr style="border-top: 1px solid #cbd5e1; font-size: 15px; font-weight: bold;">
+            <td style="padding-top: 5px; color:#1E6F2B;">Total Charged Fare:</td>
+            <td style="padding-top: 5px; text-align: right; color:#1E6F2B;">₹{total_fare}.00</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="font-size: 10px; color: #64748b; background-color: #f8fafc; padding: 8px; border-radius: 6px; margin-top: 10px; border: 1px solid #e2e8f0; line-height: 1.4;">
+              <strong>Payment ID:</strong> {razorpay_payment_id}<br/>
+              <strong>Merchant:</strong> Razorpay Gateway Integrations
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <div class="terms-box">
+    <strong>IMPORTANT TERMS & BOARDING CONDITIONS:</strong><br/>
+    1. This E-Ticket is valid only when accompanied by an original identity verification document (e.g. Aadhaar Card, Passport, Voter ID, PAN Card) matching the passenger name listed above.<br/>
+    2. Passengers must check-in at least 20 minutes prior to scheduled departure. Seat swapping must be verified with the train TTE supervisor.<br/>
+    3. Do not carry hazardous, explosive or inflammable materials. Smoking is strictly prohibited within the coaches.<br/>
+    4. In case of schedule delay anomalies exceeding 2 hours, the Railyn Autonomy Engine will automatically queue and propose dynamic re-routing options.
+  </div>
+  
+  <div style="font-size: 9px; color: #94a3b8; text-align: center; margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-weight: bold;">
+    Autonomously served and digitally signed by Railyn Railway Systems.
+  </div>
+</body>
+</html>
