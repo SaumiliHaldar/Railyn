@@ -80,7 +80,7 @@ const Ticket: React.FC<TicketProps> = ({
               </span>
             </div>
           </div>
-          <div className="status-badge" data-status={status} style={{ margin: 0, flexShrink: 0 }}>
+          <div className="status-badge" data-status={status === "CANCELLED_SWAPPED" ? "CANCELLED" : status} style={{ margin: 0, flexShrink: 0 }}>
             {status === "CANCELLED_SWAPPED" ? "CANCELLED" : (status || 'PENDING')}
           </div>
         </div>
@@ -134,7 +134,10 @@ const Ticket: React.FC<TicketProps> = ({
                     opacity: isCancelled ? 0.45 : 1
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{p.name} <small style={{ opacity: 0.5 }}>({p.age})</small></span>
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                        {p.name}
+                        {p.age ? <small style={{ opacity: 0.5 }}> ({p.age})</small> : null}
+                      </span>
                       {isCancelled && <span style={{ fontSize: '10px', background: '#FF4D4D', color: 'white', padding: '1px 4px', borderRadius: '4px', fontWeight: 900 }}>CAN</span>}
                     </div>
                     <span style={{ 

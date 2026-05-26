@@ -326,7 +326,7 @@ const Dashboard = () => {
                   <motion.div key={b._id} layout variants={cardVariants} exit={{ opacity: 0, scale: 0.98 }} className={`ticket-card ${(b.status === "CANCELLED" || b.status === "CANCELLED_SWAPPED") ? "cancelled" : "completed"}`}>
                     <div className="ticket-content">
                       <div className="ticket-header-row">
-                        <div className="ticket-badge" data-status={b.status}>
+                        <div className="ticket-badge" data-status={b.status === "CANCELLED_SWAPPED" ? "CANCELLED" : b.status}>
                           {b.status === "CANCELLED_SWAPPED" ? "CANCELLED" : (b.status || 'RES')}
                         </div>
                         <div className="ticket-pnr">PNR: <strong>{b.pnr}</strong></div>

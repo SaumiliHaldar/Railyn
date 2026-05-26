@@ -818,19 +818,8 @@ async def get_pnr_status(request: Request, pnr: str, user_token: Optional[dict] 
         
     # Mask passenger details for public verification to protect PII (GDPR/IRCTC standard compliance)
     masked_passengers = []
-    for p in booking.get("passengers", []):
-        parts = p.get("name", "").split()
-        masked_name = ""
-        if parts:
-            masked_parts = []
-            for part in parts:
-                if len(part) > 1:
-                    masked_parts.append(part[0] + "*" * (len(part) - 1))
-                else:
-                    masked_parts.append(part)
-            masked_name = " ".join(masked_parts)
-        else:
-            masked_name = "Unknown"
+    for i, p in enumerate(booking.get("passengers", [])):
+        masked_name = f"Passenger {i + 1}"
             
         masked_passengers.append({
             "name": masked_name,

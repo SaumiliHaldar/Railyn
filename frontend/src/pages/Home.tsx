@@ -103,7 +103,6 @@ const Home = () => {
   const [toStn, setToStn] = useState("");
   const [date, setDate] = useState("");
   const [classType, setClassType] = useState("");
-  const [quota, setQuota] = useState("General");
   
   const [fromSuggestions, setFromSuggestions] = useState<Station[]>([]);
   const [toSuggestions, setToSuggestions] = useState<Station[]>([]);
@@ -327,7 +326,12 @@ const Home = () => {
     setPnrLoading(true);
     setPnrResult(null);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/pnr_status/${pnrInput}`);
+      const token = await getToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/pnr_status/${pnrInput}`, { headers });
       const data = await res.json();
       if (res.ok) {
         setPnrResult(data.booking);
@@ -385,7 +389,7 @@ const Home = () => {
                 <Search size={18} /> PNR Status
               </button>
               <button className={`tab ${activeTab === 'charts' ? 'active' : ''}`} onClick={() => setActiveTab('charts')}>
-                <Calendar size={18} /> Live Train Status
+                <Calendar size={18} /> Vacancy Charts
               </button>
             </div>
             {activeTab === 'book' ? (
@@ -470,24 +474,6 @@ const Home = () => {
                     {loading ? "..." : <Search size={22} />}
                   </button>
                 </div>
-
-                <div style={{ display: 'flex', gap: '24px', marginTop: '24px', paddingLeft: '8px', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <select value={quota} onChange={(e) => setQuota(e.target.value)} style={{ border: 'none', background: 'none', fontWeight: '800', fontSize: '13px', color: 'var(--text-main)', cursor: 'pointer', padding: '0', textTransform: 'uppercase' }}>
-                      <option>General</option>
-                      <option>Ladies</option>
-                      <option>Tatkal</option>
-                    </select>
-                  </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: '600' }}>
-                    <input type="checkbox" style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }} /> 
-                    <span>Person With Disability</span>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: '600' }}>
-                    <input type="checkbox" style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }} /> 
-                    <span>Flexible with Date</span>
-                  </label>
-                </div>
               </div>
             ) : activeTab === 'pnr' ? (
               <div className="pnr-search-container search-form-container">
@@ -528,10 +514,10 @@ const Home = () => {
                           borderRadius: '20px', 
                           fontSize: '12px', 
                           fontWeight: 700,
-                          background: pnrResult.status === 'CNF' ? '#dcfce7' : '#fef9c3',
-                          color: pnrResult.status === 'CNF' ? '#166534' : '#854d0e'
+                          background: pnrResult.status === 'CNF' ? '#dcfce7' : (pnrResult.status === 'CANCELLED' || pnrResult.status === 'CANCELLED_SWAPPED') ? '#fee2e2' : '#fef9c3',
+                          color: pnrResult.status === 'CNF' ? '#166534' : (pnrResult.status === 'CANCELLED' || pnrResult.status === 'CANCELLED_SWAPPED') ? '#991b1b' : '#854d0e'
                         }}>
-                          {pnrResult.status}
+                          {pnrResult.status === "CANCELLED_SWAPPED" ? "CANCELLED" : pnrResult.status}
                         </span>
                       </div>
                     </div>
