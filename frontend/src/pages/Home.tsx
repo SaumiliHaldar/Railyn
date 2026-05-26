@@ -92,6 +92,11 @@ const getRunsOnDays = (trainNumber: string): boolean[] => {
   return patterns[patternIndex];
 };
 
+const localToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 const Home = () => {
   const [activeTab, setActiveTab] = useState("book");
   const { getToken } = useAuth();
@@ -101,7 +106,7 @@ const Home = () => {
   
   const [fromStn, setFromStn] = useState("");
   const [toStn, setToStn] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(localToday());
   const [classType, setClassType] = useState("");
   
   const [fromSuggestions, setFromSuggestions] = useState<Station[]>([]);
@@ -124,8 +129,13 @@ const Home = () => {
   const [chartResult, setChartResult] = useState<ChartResult | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState<any | null>(null);
-  const [chartDate, setChartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [chartDate, setChartDate] = useState(localToday());
   const [viewingTicket, setViewingTicket] = useState<BookingData | null>(null);
+
+  const filteredTrains = trains.filter(train => {
+    if (!classType) return true;
+    return train.seat_inventory && train.seat_inventory[classType] !== undefined;
+  });
 
   useEffect(() => {
     const registerUser = async () => {
@@ -462,7 +472,7 @@ const Home = () => {
                   <div className="input-group">
                     <label>All Class</label>
                     <select value={classType} onChange={(e) => setClassType(e.target.value)}>
-                      <option value="">Class</option>
+                      <option value="">All Class</option>
                       <option value="1AC">AC First Class (1A)</option>
                       <option value="2AC">AC 2 Tier (2A)</option>
                       <option value="3AC">AC 3 Tier (3A)</option>
@@ -684,11 +694,11 @@ const Home = () => {
         <section id="results-section" className="results-container">
           <div className="results-header">
             <h2>Available Trains</h2>
-            <p>{trains.length} trains found for {fromStn} to {toStn}</p>
+            <p>{filteredTrains.length} trains found for {fromStn} to {toStn}</p>
           </div>
           
           <div className="train-list">
-            {trains.map((train, idx) => (
+            {filteredTrains.map((train, idx) => (
               <motion.div 
                 initial={{ opacity: 0, x: -20 }} 
                 animate={{ opacity: 1, x: 0 }} 
@@ -719,34 +729,38 @@ const Home = () => {
                 </div>
                 
                 <div className="seat-inventory">
-                  {Object.entries(train.seat_inventory as Record<string, number>).map(([cls, count]) => {
-                    const fare = (train as any).fares?.[cls] || 0;
-                    return (
-                      <div key={cls} className={`seat-box ${count > 0 ? 'available' : 'wl'}`}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-                          <span className="class-name">{cls}</span>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#1E6F2B' }}>₹{fare}</span>
+                  {Object.entries(train.seat_inventory as Record<string, number>)
+                    .filter(([cls]) => !classType || cls === classType)
+                    .map(([cls, count]) => {
+                      const fare = (train as any).fares?.[cls] || 0;
+                      return (
+                        <div key={cls} className={`seat-box ${count > 0 ? 'available' : 'wl'}`}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                            <span className="class-name">{cls}</span>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#1E6F2B' }}>₹{fare}</span>
+                          </div>
+                          <span className="seat-count">{count > 0 ? `AVL ${count}` : `WL ${Math.abs(count)}`}</span>
+                          <button 
+                            className="book-mini-btn"
+                            onClick={() => {
+                              setSelectedTrain(train);
+                              setSelectedClass(cls);
+                            }}
+                          >
+                            Book Now
+                          </button>
                         </div>
-                        <span className="seat-count">{count > 0 ? `AVL ${count}` : `WL ${Math.abs(count)}`}</span>
-                        <button 
-                          className="book-mini-btn"
-                          onClick={() => {
-                            setSelectedTrain(train);
-                            setSelectedClass(cls);
-                          }}
-                        >
-                          Book Now
-                        </button>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
                 
                 {/* Waitlist Probability Badge */}
                 <div className="train-meta-footer" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                   <div className="prob-container" style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span className="prob-label" style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Confirmation Chance:</span>
-                    {Object.entries(train.wl_probabilities || {}).map(([cls, prob]) => (
+                    {Object.entries(train.wl_probabilities || {})
+                      .filter(([cls]) => !classType || cls === classType)
+                      .map(([cls, prob]) => (
                       <span key={cls} className={`prob-badge ${(prob as string).toLowerCase()}`} style={{ 
                         fontSize: '11px', 
                         fontWeight: '700', 

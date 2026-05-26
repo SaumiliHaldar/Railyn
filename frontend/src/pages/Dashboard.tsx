@@ -13,7 +13,13 @@ import dashboardHero from "../assets/dashboard_hero.png";
 const API_URL  = import.meta.env.VITE_API_URL;
 const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
 
-const getDuration = (dep: string, arr: string) => {
+const getDuration = (dep: string, arr: string, durationH?: number | null, durationM?: number | null) => {
+  if (durationH != null && durationM != null) {
+    return durationH > 0
+      ? `${durationH}h ${durationM}m`
+      : `${durationM}m`;
+  }
+  // Fallback: compute from departure/arrival times (for older records)
   if (!dep || !arr) return '';
   const [h1, m1] = dep.split(':').map(Number);
   const [h2, m2] = arr.split(':').map(Number);
@@ -22,7 +28,7 @@ const getDuration = (dep: string, arr: string) => {
   if (mins < 0) mins += 24 * 60;
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return `${h}h:${m}m`;
+  return `${h}h ${m}m`;
 };
 
 /* ─── Framer variants ────────────────────────────────────────── */
@@ -344,7 +350,7 @@ const Dashboard = () => {
                       
                       <div className="ticket-route-row-dash">
                         <div className="stn-dash">{b.from_stn}</div>
-                        <div className="route-dash-line">---{getDuration(b.departure, b.arrival)}---</div>
+                        <div className="route-dash-line">---{getDuration(b.departure, b.arrival, b.duration_h, b.duration_m)}---</div>
                         <div className="stn-dash right">{b.to_stn}</div>
                       </div>
                     </div>
@@ -408,7 +414,7 @@ const Dashboard = () => {
         )}
 
         {/* Cancellation Selection */}
-        {cancelTarget && (
+        {cancelTarget && !showConfirm && (
           <div className="modal-overlay" onClick={() => setCancelTarget(null)}>
             <motion.div className="booking-modal" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} onClick={e => e.stopPropagation()} style={{ padding: 24 }}>
               <h3>Cancel Trip</h3>
