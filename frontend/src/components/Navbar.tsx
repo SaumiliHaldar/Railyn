@@ -1,7 +1,7 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
-import { Train } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import logo from "../assets/logo.png";
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -16,8 +16,8 @@ const Navbar = () => {
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="logo" style={{ fontSize: '24px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ background: 'white', padding: '8px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-            <Train size={28} color="var(--primary)" />
+          <div style={{ width: '44px', height: '44px', background: 'white', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <img src={logo} alt="Railyn Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', transform: 'scale(1.5)' }} />
           </div>
           <span style={{ fontFamily: 'var(--heading)', color: 'var(--text-main)', fontSize: '22px', letterSpacing: '-0.5px', fontWeight: '800' }}>Railyn</span>
         </Link>
