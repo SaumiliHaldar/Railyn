@@ -221,7 +221,7 @@ async def trigger_email(email_type: str, email: str, data: dict):
               <td style="padding:10px; color:#334155;">{idx + 1}</td>
               <td style="padding:10px; font-weight:600; color:#334155;">{name}</td>
               <td style="padding:10px; color:#dc2626; font-weight:bold;">CANCELLED</td>
-              <td style="padding:10px; color:#64748b; font-size:12px;">Refund Processed</td>
+              <td style="padding:10px; color:#64748b; font-size:12px;">Refund Initiated</td>
             </tr>"""
             
         cancel_view = load_template("cancel.html")
