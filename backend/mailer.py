@@ -68,6 +68,23 @@ def send_to_apps_script(email: str, subject: str, html_body: str, pdf_html: str 
     return False
 
 
+def format_to_ddmmyyyy(date_str: str) -> str:
+    """Formats a YYYY-MM-DD date string to DD-MM-YYYY format for formal presentation."""
+    if not date_str:
+        return ""
+    parts = date_str.split("-")
+    if len(parts) == 3 and len(parts[0]) == 2:
+        return date_str
+    if len(parts) == 3 and len(parts[0]) == 4:
+        return f"{parts[2]}-{parts[1]}-{parts[0]}"
+    try:
+        from datetime import datetime
+        d = datetime.strptime(date_str, "%Y-%m-%d")
+        return d.strftime("%d-%m-%Y")
+    except:
+        return date_str
+
+
 async def trigger_email(email_type: str, email: str, data: dict):
     """
     Asynchronously renders base and view templates, schedules non-blocking background dispatch.
@@ -81,6 +98,9 @@ async def trigger_email(email_type: str, email: str, data: dict):
     content_html = ""
     pdf_html = None
     pnr = data.get("pnr", "Ticket")
+    
+    # Format travel date for presentation
+    formatted_date = format_to_ddmmyyyy(data.get("travel_date") or "")
     
     # 1. Fetch Dynamic Base64 logo.png
     logo_src = get_logo_src()
@@ -133,7 +153,7 @@ async def trigger_email(email_type: str, email: str, data: dict):
             train_name=data.get("train_name"),
             from_stn=data.get("from_stn"),
             to_stn=data.get("to_stn"),
-            travel_date=data.get("travel_date"),
+            travel_date=formatted_date,
             class_type=data.get("class_type"),
             pnr=pnr,
             passenger_rows=passenger_rows
@@ -159,7 +179,7 @@ async def trigger_email(email_type: str, email: str, data: dict):
                 train_no=data.get("train_number"),
                 from_stn=data.get("from_stn"),
                 to_stn=data.get("to_stn"),
-                date=data.get("travel_date"),
+                date=formatted_date,
                 class_type=data.get("class_type"),
                 coach=coach,
                 seat=seat,
@@ -170,7 +190,7 @@ async def trigger_email(email_type: str, email: str, data: dict):
             print(f"[Mailer Error] Failed to generate QR code locally: {e}")
             # Fallback to qrserver if local generation fails
             import urllib.parse
-            qr_data_string = f"RAILYN|PNR:{pnr}|TRAIN:{data.get('train_number')}|CLASS:{data.get('class_type')}|DATE:{data.get('travel_date')}"
+            qr_data_string = f"RAILYN|PNR:{pnr}|TRAIN:{data.get('train_number')}|CLASS:{data.get('class_type')}|DATE:{formatted_date}"
             qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={urllib.parse.quote(qr_data_string)}"
         
         pdf_ticket_view = load_template("pdf_ticket.html")
@@ -179,7 +199,7 @@ async def trigger_email(email_type: str, email: str, data: dict):
         pdf_html = pdf_html.replace("{pnr}", pnr)
         pdf_html = pdf_html.replace("{train_number}", data.get("train_number") or "")
         pdf_html = pdf_html.replace("{train_name}", data.get("train_name") or "")
-        pdf_html = pdf_html.replace("{travel_date}", data.get("travel_date") or "")
+        pdf_html = pdf_html.replace("{travel_date}", formatted_date or "")
         pdf_html = pdf_html.replace("{from_stn}", data.get("from_stn") or "")
         pdf_html = pdf_html.replace("{to_stn}", data.get("to_stn") or "")
         pdf_html = pdf_html.replace("{departure}", data.get("departure") or "")
@@ -209,7 +229,7 @@ async def trigger_email(email_type: str, email: str, data: dict):
             pnr=pnr,
             train_number=data.get("train_number"),
             train_name=data.get("train_name"),
-            travel_date=data.get("travel_date"),
+            travel_date=formatted_date,
             passenger_rows=passenger_rows,
             original_fare=data.get("original_fare", 0),
             cancellation_fee=data.get("cancellation_fee", 0),
@@ -259,7 +279,7 @@ async def trigger_email(email_type: str, email: str, data: dict):
             pnr=pnr,
             train_number=data.get("train_number"),
             train_name=data.get("train_name"),
-            travel_date=data.get("travel_date"),
+            travel_date=formatted_date,
             class_type=data.get("class_type"),
             passenger_rows=passenger_rows
         )
