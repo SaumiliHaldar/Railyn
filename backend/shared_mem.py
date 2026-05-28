@@ -11,9 +11,6 @@ SHM_NAME = "railyn_seat_inventory"
 CLASSES = ["1AC", "2AC", "3AC", "Sleeper", "General"]
 NUM_CLASSES = len(CLASSES)
 
-CLASSES = ["1AC", "2AC", "3AC", "Sleeper", "General"]
-NUM_CLASSES = len(CLASSES)
-
 # Mapping of train_number to index in shared memory
 _train_to_idx = {}
 _shm = None

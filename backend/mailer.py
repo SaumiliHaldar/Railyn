@@ -14,40 +14,18 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 ASSETS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "src", "assets"))
 
 
-def get_logo_base64() -> str:
-    """Reads the project logo, resizes and highly compresses it in-memory to keep email payloads light.
-    Tries the frontend assets directory first, then falls back to the local backend copy."""
-    # Primary: frontend assets, Fallback: local backend copy
-    candidates = [
-        os.path.join(ASSETS_DIR, "logo.png"),
-        os.path.join(os.path.dirname(__file__), "logo.png"),
-    ]
-    logo_path = next((p for p in candidates if os.path.exists(p)), None)
-
-    if logo_path:
-        print(f"[Mailer] Loading logo from: {logo_path}")
-        try:
-            with Image.open(logo_path) as img:
-                # Convert to RGBA to handle transparency safely
-                img = img.convert("RGBA")
-                # Center-crop to a square and resize to 88x88 (2x for HiDPI 44px img)
-                img = ImageOps.fit(img, (88, 88), method=Image.LANCZOS, centering=(0.5, 0.5))
-                buffer = io.BytesIO()
-                img.save(buffer, format="PNG", optimize=True)
-                encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                return f"data:image/png;base64,{encoded}"
-        except Exception as e:
-            print(f"[Mailer Error] Failed to PIL compress logo: {e}")
-            # Fallback to raw base64 if PIL errors
-            try:
-                with open(logo_path, "rb") as image_file:
-                    encoded = base64.b64encode(image_file.read()).decode("utf-8")
-                    return f"data:image/png;base64,{encoded}"
-            except:
-                pass
-    else:
-        print(f"[Mailer Warning] Logo not found in any known path: {candidates}")
-    return ""
+def get_logo_src() -> str:
+    """Gets a web-safe, stable public HTTPS URL for the Railyn logo to ensure rendering in all email clients (like Gmail/Outlook).
+    Uses LOGO_URL from environment variables if set, falling back to the raw GitHub asset."""
+    logo_env = os.getenv("LOGO_URL")
+    if logo_env:
+        print(f"[Mailer] Loading logo from LOGO_URL env: {logo_env}")
+        return logo_env
+        
+    # Default to the highly reliable, CDN-cached raw GitHub URL for your frontend assets
+    fallback_url = "https://raw.githubusercontent.com/SaumiliHaldar/Railyn/main/frontend/src/assets/logo1.png"
+    print(f"[Mailer] Using stable GitHub raw URL fallback: {fallback_url}")
+    return fallback_url
 
 
 def load_template(filename: str) -> str:
@@ -105,7 +83,7 @@ async def trigger_email(email_type: str, email: str, data: dict):
     pnr = data.get("pnr", "Ticket")
     
     # 1. Fetch Dynamic Base64 logo.png
-    logo_src = get_logo_base64()
+    logo_src = get_logo_src()
     
     # 2. Load Base Layout
     base_layout = load_template("base.html")
