@@ -1,16 +1,18 @@
-<div style="background-color: transparent; border-left: 5px solid transparent; padding: 15px; border-radius: 6px; margin-bottom: 25px;">
-  <h3 style="margin: 0; font-size: 15px; color: black; font-weight: 700;">{status_label}</h3>
+{% set alert_div = '<div style="background-color: ' ~ alert_color ~ '; border-left: 5px solid ' ~ border_color ~ '; padding: 15px; border-radius: 6px; margin-bottom: 25px;">' %}
+{% set alert_h3 = '<h3 style="margin: 0; font-size: 15px; color: ' ~ text_color ~ '; font-weight: 700;">' %}
+{{ alert_div | safe }}
+  {{ alert_h3 | safe }}{{ status_label }}</h3>
   <p style="margin: 5px 0 0 0; font-size: 13px; color: #334155;">Your e-ticket has been confirmed! An official E-Ticket reservation slip (PDF) is attached to this mail.</p>
 </div>
 
 <h4 style="margin: 0 0 12px 0; color: #1E6F2B; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">PNR Details & Summary</h4>
 <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px; background-color: #f8fafc; margin-bottom: 20px; font-size: 14px;">
-  <div style="font-size: 16px; font-weight: 800; color: #1E6F2B; margin-bottom: 8px;">{train_number} - {train_name}</div>
+  <div style="font-size: 16px; font-weight: 800; color: #1E6F2B; margin-bottom: 8px;">{{ train_number }} - {{ train_name }}</div>
   <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
-    <tr><td style="padding: 4px 0; color: #64748b; width: 100px;">Route:</td><td><strong>{from_stn} ➔ {to_stn}</strong></td></tr>
-    <tr><td style="padding: 4px 0; color: #64748b;">Date:</td><td><strong>{travel_date}</strong></td></tr>
-    <tr><td style="padding: 4px 0; color: #64748b;">Class:</td><td><strong style="background-color: #cbd5e1; color:#0f172a; padding: 2px 6px; border-radius: 4px; font-size: 11px;">{class_type}</strong></td></tr>
-    <tr><td style="padding: 4px 0; color: #64748b;">PNR Code:</td><td><strong style="color: #1E6F2B;">{pnr}</strong></td></tr>
+    <tr><td style="padding: 4px 0; color: #64748b; width: 100px;">Route:</td><td><strong>{{ from_stn }} ➔ {{ to_stn }}</strong></td></tr>
+    <tr><td style="padding: 4px 0; color: #64748b;">Date:</td><td><strong>{{ travel_date }}</strong></td></tr>
+    <tr><td style="padding: 4px 0; color: #64748b;">Class:</td><td><strong style="background-color: #cbd5e1; color:#0f172a; padding: 2px 6px; border-radius: 4px; font-size: 11px;">{{ class_type }}</strong></td></tr>
+    <tr><td style="padding: 4px 0; color: #64748b;">PNR Code:</td><td><strong style="color: #1E6F2B;">{{ pnr }}</strong></td></tr>
   </table>
 </div>
 
@@ -26,7 +28,18 @@
     </tr>
   </thead>
   <tbody>
-    {passenger_rows}
+    {% for p in passengers %}
+    {% set p_status = p.get('status', status) %}
+    {% set span_style = 'background-color: #F0F7F1; color: #1E6F2B; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold;' if p_status == 'CNF' else 'background-color: #fffbeb; color: #b45309; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold;' %}
+    {% set span_html = '<span style="' ~ span_style ~ '">' ~ p_status ~ '</span>' %}
+    <tr style="border-bottom:1px solid #e2e8f0; font-size:13px; text-align: left;">
+      <td style="padding:10px; color:#334155;">{{ loop.index }}</td>
+      <td style="padding:10px; font-weight:600; color:#0f172a;">{{ p.name }}</td>
+      <td style="padding:10px; color:#475569;">{{ p.age }} / {{ p.get('gender', 'M') }}</td>
+      <td style="padding:10px; color:#1E6F2B; font-weight:bold;">{{ p.get('coach', 'WL') }}-{{ p.get('seat', wl_position if status == 'WL' else loop.index) }}</td>
+      <td style="padding:10px;">{{ span_html | safe }}</td>
+    </tr>
+    {% endfor %}
   </tbody>
 </table>
 

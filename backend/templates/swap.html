@@ -11,14 +11,14 @@
   </tr>
   <tr style="font-size: 13px; text-align: center;">
     <td style="padding: 15px 10px; border-right: 1px solid #cbd5e1; color: #64748b; text-decoration: line-through;">
-      Train: {old_train_number}<br/>
-      {old_train_name}<br/>
-      PNR: {old_pnr}
+      Train: {{ old_train_number }}<br/>
+      {{ old_train_name }}<br/>
+      PNR: {{ old_pnr }}
     </td>
     <td style="padding: 15px 10px; color: #1E6F2B; font-weight: bold; background-color: #F0F7F1;">
-      Train: {new_train_number}<br/>
-      {new_train_name}<br/>
-      PNR: <span style="background-color: #1E6F2B; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">{new_pnr}</span>
+      Train: {{ new_train_number }}<br/>
+      {{ new_train_name }}<br/>
+      PNR: <span style="background-color: #1E6F2B; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">{{ new_pnr }}</span>
     </td>
   </tr>
 </table>
@@ -31,7 +31,14 @@
     </tr>
   </thead>
   <tbody>
-    {passenger_rows}
+    {% for p in passengers %}
+    <tr style="border-bottom:1px solid #e2e8f0; font-size:13px;">
+      <td style="padding:8px;">{{ loop.index }}</td>
+      <td style="padding:8px; font-weight:600;">{{ p.name }}</td>
+      <td style="padding:8px; color:#1E6F2B; font-weight:bold;">{{ p.get('coach', 'S1') }}-{{ p.get('seat', 10) }}</td>
+      <td style="padding:8px; font-weight:bold; color:green;">CNF</td>
+    </tr>
+    {% endfor %}
   </tbody>
 </table>
 

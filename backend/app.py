@@ -12,6 +12,7 @@ from jose import jwt
 from datetime import datetime
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, Depends, BackgroundTasks
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -25,6 +26,14 @@ import mqtt_engine, shared_mem, pricing
 import razorpay
 from mailer import trigger_email
 from bson.objectid import ObjectId
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger("railyn")
 
 load_dotenv()
 
@@ -58,8 +67,8 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
         jwks = get_jwks()
-        # Disable verify_exp check to prevent token expiration failures caused by clock drift or idle modals
-        payload = jwt.decode(token, jwks, algorithms=["RS256"], options={"verify_aud": False, "verify_exp": False})
+        # verify_exp re-enabled — tokens must not be expired
+        payload = jwt.decode(token, jwks, algorithms=["RS256"], options={"verify_aud": False})
         return payload
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
@@ -74,14 +83,14 @@ def verify_token_optional(credentials: Optional[HTTPAuthorizationCredentials] = 
     token = credentials.credentials
     try:
         jwks = get_jwks()
-        # Disable verify_exp check to prevent token expiration failures caused by clock drift or idle modals
-        payload = jwt.decode(token, jwks, algorithms=["RS256"], options={"verify_aud": False, "verify_exp": False})
+        # verify_exp re-enabled — tokens must not be expired
+        payload = jwt.decode(token, jwks, algorithms=["RS256"], options={"verify_aud": False})
         return payload
     except Exception:
         return None
 
 async def create_indexes(db):
-    print("Creating MongoDB indexes for high-speed queries...")
+    logger.info("Creating MongoDB indexes for high-speed queries...")
     # 1. Schedules Indexes (Crucial for train search O(1) matching & O(1) joins)
     await db.schedules.create_index("station_code")
     await db.schedules.create_index([("train_number", 1), ("station_code", 1), ("id", 1)])
@@ -90,24 +99,24 @@ async def create_indexes(db):
     try:
         await db.trains.create_index("number", unique=True)
     except Exception as e:
-        print(f"Non-fatal error creating trains index: {e}")
+        logger.warning(f"Non-fatal error creating trains index: {e}")
         await db.trains.create_index("number")
     
     # 3. Bookings Indexes (Crucial for sub-millisecond PNR fetches and replay prevention)
     try:
         await db.bookings.create_index("pnr", unique=True)
     except Exception as e:
-        print(f"Non-fatal error creating bookings pnr index: {e}")
+        logger.warning(f"Non-fatal error creating bookings pnr index: {e}")
         await db.bookings.create_index("pnr")
         
     await db.bookings.create_index("user_id")
     await db.bookings.create_index("razorpay_payment_id", sparse=True)
-    print("Indexes created successfully!")
+    logger.info("Indexes created successfully!")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global client
-    print(f"Connecting to MongoDB...")
+    logger.info("Connecting to MongoDB...")
     client = AsyncIOMotorClient(MONGO_URI)
     app.state.db = client[DB_NAME]
     
@@ -115,11 +124,11 @@ async def lifespan(app: FastAPI):
     await create_indexes(app.state.db)
     
     # Initialize Shared Memory for seat inventory
-    print("Initializing Shared Memory Box...")
+    logger.info("Initializing Shared Memory Box...")
     await shared_mem.init_shm(app.state.db)
     
     yield
-    print("Closing MongoDB connection and cleaning up SHM...")
+    logger.info("Closing MongoDB connection and cleaning up SHM...")
     client.close()
     shared_mem.cleanup()
 
@@ -137,6 +146,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled Exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"message": "An internal server error occurred. Our team has been notified."},
+    )
 
 # --- Models ---
 class Passenger(BaseModel):
@@ -341,6 +358,14 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
     if not train:
         raise HTTPException(status_code=404, detail="Train not found")
         
+    # 1b. Validate travel date — reject past dates at the server level
+    try:
+        travel_date_obj = datetime.strptime(booking.travel_date, "%Y-%m-%d").date()
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid travel date format. Use YYYY-MM-DD.")
+    if travel_date_obj < datetime.utcnow().date():
+        raise HTTPException(status_code=400, detail="Travel date cannot be in the past.")
+
     # 2. Verify Payment (CRITICAL SECURITY FIX)
     dist = train.get("distance", 100)
     t_type = train.get("type", "Express")

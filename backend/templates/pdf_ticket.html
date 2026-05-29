@@ -21,12 +21,12 @@
   <table class="header-table">
     <tr>
       <td style="width: 50px; vertical-align: middle; padding-right: 15px;">
-        <img src="{logo_src}" alt="Railyn Logo" style="height: 48px; display: block; border-radius: 6px;" />
+        <img src="{{ logo_src }}" alt="Railyn Logo" style="height: 48px; display: block; border-radius: 6px;" />
       </td>
       <td class="header-logo" style="vertical-align: middle; text-align: left;">RAILYN</td>
       <td class="header-title" style="vertical-align: middle;">
         ELECTRONIC RESERVATION SLIP (ERS)<br/>
-        <span style="font-size: 20px; color: #1E6F2B; font-weight: 800;">PNR: {pnr}</span>
+        <span style="font-size: 20px; color: #1E6F2B; font-weight: 800;">PNR: {{ pnr }}</span>
       </td>
     </tr>
   </table>
@@ -37,27 +37,27 @@
   <table class="info-table">
     <tr>
       <td class="info-label">Train No & Name:</td>
-      <td><strong>{train_number} - {train_name}</strong></td>
+      <td><strong>{{ train_number }} - {{ train_name }}</strong></td>
       <td class="info-label">Date of Journey:</td>
-      <td><strong>{travel_date}</strong></td>
+      <td><strong>{{ travel_date }}</strong></td>
     </tr>
     <tr>
       <td class="info-label">From Station:</td>
-      <td><strong>{from_stn}</strong></td>
+      <td><strong>{{ from_stn }}</strong></td>
       <td class="info-label">To Station:</td>
-      <td><strong>{to_stn}</strong></td>
+      <td><strong>{{ to_stn }}</strong></td>
     </tr>
     <tr>
       <td class="info-label">Scheduled Dep:</td>
-      <td><strong>{departure}</strong></td>
+      <td><strong>{{ departure }}</strong></td>
       <td class="info-label">Scheduled Arr:</td>
-      <td><strong>{arrival}</strong></td>
+      <td><strong>{{ arrival }}</strong></td>
     </tr>
     <tr>
       <td class="info-label">Class of Travel:</td>
-      <td><span style="background-color:#F0F7F1; color:#1E6F2B; padding:2px 6px; border-radius:4px; font-weight:bold;">{class_type}</span></td>
+      <td><span style="background-color:#F0F7F1; color:#1E6F2B; padding:2px 6px; border-radius:4px; font-weight:bold;">{{ class_type }}</span></td>
       <td class="info-label">Booked By:</td>
-      <td><strong>{user_name}</strong></td>
+      <td><strong>{{ user_name }}</strong></td>
     </tr>
   </table>
 
@@ -73,7 +73,18 @@
       </tr>
     </thead>
     <tbody>
-      {passenger_rows}
+      {% for p in passengers %}
+      {% set p_status = p.get('status', status) %}
+      {% set span_style = 'background-color: #F0F7F1; color: #1E6F2B; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold;' if p_status == 'CNF' else 'background-color: #fffbeb; color: #b45309; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold;' %}
+      {% set span_html = '<span style="' ~ span_style ~ '">' ~ p_status ~ '</span>' %}
+      <tr style="border-bottom:1px solid #e2e8f0; font-size:13px; text-align: left;">
+        <td style="padding:10px; color:#334155; text-align: center;">{{ loop.index }}</td>
+        <td style="padding:10px; font-weight:600; color:#0f172a;">{{ p.name }}</td>
+        <td style="padding:10px; color:#475569; text-align: center;">{{ p.age }} / {{ p.get('gender', 'M') }}</td>
+        <td style="padding:10px; color:#1E6F2B; font-weight:bold; text-align: center;">{{ p.get('coach', 'WL') }}-{{ p.get('seat', wl_position if status == 'WL' else loop.index) }}</td>
+        <td style="padding:10px; text-align: center;">{{ span_html | safe }}</td>
+      </tr>
+      {% endfor %}
     </tbody>
   </table>
 
@@ -82,7 +93,7 @@
     <tr>
       <td style="width: 150px; vertical-align: top; padding-right: 20px;">
         <div style="border: 1px solid #cbd5e1; padding: 6px; text-align: center; border-radius: 8px; background-color:#ffffff;">
-          <img src="{qr_url}" alt="Ticket QR" style="width: 120px; height: 120px; display: block; margin: 0 auto;" />
+          <img src="{{ qr_url }}" alt="Ticket QR" style="width: 120px; height: 120px; display: block; margin: 0 auto;" />
           <div style="font-size: 8px; color: #64748b; margin-top: 5px; font-weight: bold;">Scan to Verify Ticket Offline</div>
         </div>
       </td>
@@ -90,7 +101,7 @@
         <table style="width: 100%; font-size: 13px; border-collapse: collapse; line-height: 1.8;">
           <tr>
             <td style="color:#475569;">Ticket Fare:</td>
-            <td style="text-align: right; font-weight: bold;">₹{total_fare}.00</td>
+            <td style="text-align: right; font-weight: bold;">₹{{ total_fare }}.00</td>
           </tr>
           <tr>
             <td style="color:#475569;">Convenience / PG Fee:</td>
@@ -98,11 +109,11 @@
           </tr>
           <tr style="border-top: 1px solid #cbd5e1; font-size: 15px; font-weight: bold;">
             <td style="padding-top: 5px; color:#1E6F2B;">Total Charged Fare:</td>
-            <td style="padding-top: 5px; text-align: right; color:#1E6F2B;">₹{total_fare}.00</td>
+            <td style="padding-top: 5px; text-align: right; color:#1E6F2B;">₹{{ total_fare }}.00</td>
           </tr>
           <tr>
             <td colspan="2" style="font-size: 10px; color: #64748b; background-color: #f8fafc; padding: 8px; border-radius: 6px; margin-top: 10px; border: 1px solid #e2e8f0; line-height: 1.4;">
-              <strong>Payment ID:</strong> {razorpay_payment_id}<br/>
+              <strong>Payment ID:</strong> {{ razorpay_payment_id }}<br/>
               <strong>Merchant:</strong> Razorpay Gateway Integrations
             </td>
           </tr>

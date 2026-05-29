@@ -6,10 +6,10 @@
 
 <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; margin: 15px 0; font-size: 13px;">
   <table style="width: 100%; line-height: 1.6;">
-    <tr><td style="color: #64748b; width: 110px;"><strong>PNR:</strong></td><td style="font-weight: bold; color:#0f172a;">{pnr}</td></tr>
-    <tr><td style="color: #64748b;"><strong>Train:</strong></td><td>{train_number} - {train_name}</td></tr>
-    <tr><td style="color: #64748b;"><strong>Date of travel:</strong></td><td>{travel_date}</td></tr>
-    <tr><td style="color: #64748b;"><strong>Class:</strong></td><td style="font-weight: bold; color: #1E6F2B;">{class_type}</td></tr>
+    <tr><td style="color: #64748b; width: 110px;"><strong>PNR:</strong></td><td style="font-weight: bold; color:#0f172a;">{{ pnr }}</td></tr>
+    <tr><td style="color: #64748b;"><strong>Train:</strong></td><td>{{ train_number }} - {{ train_name }}</td></tr>
+    <tr><td style="color: #64748b;"><strong>Date of travel:</strong></td><td>{{ travel_date }}</td></tr>
+    <tr><td style="color: #64748b;"><strong>Class:</strong></td><td style="font-weight: bold; color: #1E6F2B;">{{ class_type }}</td></tr>
   </table>
 </div>
 
@@ -21,7 +21,14 @@
     </tr>
   </thead>
   <tbody>
-    {passenger_rows}
+    {% for p in passengers %}
+    <tr style="border-bottom:1px solid #e2e8f0; font-size:13px;">
+      <td style="padding: 8px;">{{ loop.index }}</td>
+      <td style="padding: 8px; font-weight:600;">{{ p.name }}</td>
+      <td style="padding: 8px; color:#166534; font-weight:bold;">{{ p.get('coach', 'B1') }}-{{ p.get('seat', 10) }}</td>
+      <td style="padding: 8px; font-weight:bold; color:green;">CNF</td>
+    </tr>
+    {% endfor %}
   </tbody>
 </table>
 
