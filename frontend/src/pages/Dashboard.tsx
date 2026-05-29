@@ -3,7 +3,7 @@ import {
   AlertCircle, 
   CheckCircle2, RefreshCw, X, Search
 } from "lucide-react";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import mqtt from "mqtt";
 import Ticket from "../components/Ticket";
@@ -57,6 +57,7 @@ const Dashboard = () => {
   const [cancelTarget,   setCancelTarget]   = useState<any>(null);
   const [paxToCancel,    setPaxToCancel]    = useState<string[]>([]);
   const mqttRef = useRef<any>(null);
+  const now = useMemo(() => new Date(), []);
 
   const handleBookAgain = (b: any) => {
     const params = new URLSearchParams({
@@ -87,7 +88,7 @@ const Dashboard = () => {
     });
   }, [bookings, searchQuery, activeFilter]);
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       const token = await getToken();
       const res   = await fetch(`${API_URL}/my_bookings`, {
@@ -100,23 +101,34 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken]);
 
-  useEffect(() => { if (user) fetchBookings(); }, [user]);
+  useEffect(() => { if (user) fetchBookings(); }, [user, fetchBookings]);
 
   useEffect(() => {
     if (!user) return;
     const client = mqtt.connect(MQTT_URL);
     mqttRef.current = client;
-    client.on("connect", () => { client.subscribe(`railyn/user/${user.id}/#`); });
-    client.on("message", (topic, msg) => {
+
+    const handleConnect = () => {
+      client.subscribe(`railyn/user/${user.id}/#`);
+    };
+
+    const handleMessage = (topic: string, msg: Buffer) => {
       const payload = JSON.parse(msg.toString());
       setNotifications(prev => [...prev, { ...payload, id: Date.now() }]);
       if (topic.includes("notify")) fetchBookings();
-    });
+    };
+
+    client.on("connect", handleConnect);
+    client.on("message", handleMessage);
     
-    return () => { client.end(); };
-  }, [user]);
+    return () => {
+      client.off("connect", handleConnect);
+      client.off("message", handleMessage);
+      client.end();
+    };
+  }, [user, fetchBookings]);
 
   const handleCancelInit = (booking: any) => {
     setCancelTarget(booking);
@@ -186,11 +198,6 @@ const Dashboard = () => {
         </div>
       </section>
       <div className="dashboard-container" style={{ marginTop: 0 }}>
-        <div className="dashboard-stats-grid" style={{ padding: '0 20px', marginTop: '-40px' }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} className="skeleton-card" style={{ height: '100px', borderRadius: '24px' }} />
-          ))}
-        </div>
         <div className="booking-list" style={{ padding: '0 20px' }}>
           {[1, 2, 3].map(i => (
             <div key={i} className="skeleton-card" style={{ height: '200px', borderRadius: '28px' }} />
@@ -209,14 +216,14 @@ const Dashboard = () => {
               <div className="toast-header">
                 {n.action_prompt ? <AlertCircle size={18} color="#fbbf24" /> : <CheckCircle2 size={18} color="#4ade80" />}
                 <span>Smart Assist</span>
-                <button onClick={() => setNotifications(p => p.filter(x => x.id !== n.id))}><X size={14} /></button>
+                <button type="button" aria-label="Close notification" onClick={() => setNotifications(p => p.filter(x => x.id !== n.id))}><X size={14} /></button>
               </div>
               <div className="toast-body">
                 <h4>{n.title}</h4>
                 <p>{n.message}</p>
                 {n.action_prompt && (
                   <div className="toast-actions">
-                    <button className="btn-swap" onClick={() => handleSwap(n)}><RefreshCw size={13} /> Swap Now</button>
+                    <button type="button" className="btn-swap" onClick={() => handleSwap(n)}><RefreshCw size={13} /> Swap Now</button>
                   </div>
                 )}
               </div>
@@ -279,13 +286,20 @@ const Dashboard = () => {
               value={searchQuery}
               onChange={e => handleSearch(e.target.value)}
               className="smart-search-bar"
+              aria-label="Search by PNR, Train or Station"
             />
             <Search size={18} className="search-main-icon" />
             {searchLoading && <div className="pnr-indicator" style={{ background: 'transparent', boxShadow: 'none' }}><div className="search-spinner" /></div>}
             {searchQuery && !searchLoading && (
-              <div className="pnr-indicator" style={{ background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => setSearchQuery("")}>
+              <button
+                type="button"
+                aria-label="Clear search query"
+                className="pnr-indicator"
+                style={{ background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)', border: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => setSearchQuery("")}
+              >
                 <X size={16} />
-              </div>
+              </button>
             )}
           </div>
 
@@ -295,6 +309,7 @@ const Dashboard = () => {
               return (
                 <button
                   key={val}
+                  type="button"
                   className={`filter-pill ${activeFilter === val ? 'active' : ''}`}
                   onClick={() => setActiveFilter(val)}
                 >
@@ -311,6 +326,7 @@ const Dashboard = () => {
           </motion.div>
         )}
 
+
         <div className="booking-list" style={{ marginTop: '20px' }}>
           {filteredBookings.length === 0 ? (
             <div className="empty-state" style={{ padding: '80px 20px', textAlign: 'center', background: 'white', borderRadius: '32px', border: '1px dashed #e2e8f0' }}>
@@ -321,7 +337,7 @@ const Dashboard = () => {
               <p style={{ color: 'var(--text-muted)', maxWidth: '300px', margin: '0 auto 24px', fontSize: '14px' }}>
                 We couldn't find any bookings matching your current filters or search query.
               </p>
-              <button className="btn btn-primary" onClick={() => { setSearchQuery(""); setActiveFilter("ALL"); }}>
+              <button type="button" className="btn btn-primary" onClick={() => { setSearchQuery(""); setActiveFilter("ALL"); }}>
                 Clear all filters
               </button>
             </div>
@@ -350,7 +366,17 @@ const Dashboard = () => {
                       
                       <div className="ticket-route-row-dash">
                         <div className="stn-dash">{b.from_stn}</div>
-                        <div className="route-dash-line">---{getDuration(b.departure, b.arrival, b.duration_h, b.duration_m)}---</div>
+                        <div className="route-dash-line">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0, boxShadow: '0 0 0 3px var(--primary-glow)' }} />
+                            <div style={{ flex: 1, height: 2, background: 'linear-gradient(to right, var(--primary), #e2e8f0, var(--primary))', borderRadius: 2, position: 'relative' }}>
+                              <span style={{ position: 'absolute', top: '-18px', left: '50%', transform: 'translateX(-50%)', fontSize: 10, fontWeight: 700, color: 'var(--primary)', background: 'var(--primary-light)', padding: '2px 8px', borderRadius: 20, whiteSpace: 'nowrap', border: '1px solid rgba(30,111,43,0.15)' }}>
+                                {getDuration(b.departure, b.arrival, b.duration_h, b.duration_m)}
+                              </span>
+                            </div>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0, boxShadow: '0 0 0 3px var(--primary-glow)' }} />
+                          </div>
+                        </div>
                         <div className="stn-dash right">{b.to_stn}</div>
                       </div>
                     </div>
@@ -358,13 +384,13 @@ const Dashboard = () => {
                     <div className="ticket-divider"></div>
                     
                     <div className="ticket-actions">
-                      {b.status !== "CANCELLED" && b.status !== "CANCELLED_SWAPPED" && new Date(b.travel_date) > new Date() ? (
-                        <button className="action-btn" onClick={() => handleCancelInit(b)}>Cancel</button>
+                      {b.status !== "CANCELLED" && b.status !== "CANCELLED_SWAPPED" && new Date(b.travel_date) > now ? (
+                        <button type="button" className="action-btn" onClick={() => handleCancelInit(b)}>Cancel</button>
                       ) : (
-                        <button className="action-btn" onClick={() => handleBookAgain(b)}>Book Again</button>
+                        <button type="button" className="action-btn" onClick={() => handleBookAgain(b)}>Book Again</button>
                       )}
                       <div className="action-sep"></div>
-                      <button className="action-btn" onClick={() => setSelectedBooking(b)}>View Details</button>
+                      <button type="button" className="action-btn" onClick={() => setSelectedBooking(b)}>View Details</button>
                     </div>
                   </motion.div>
                 ))}
@@ -377,13 +403,13 @@ const Dashboard = () => {
       {/* Confirmation Modal */}
       <AnimatePresence>
         {showConfirm && (
-          <div className="modal-overlay" onClick={() => setShowConfirm(null)}>
+          <div className="modal-overlay" role="presentation" onClick={() => setShowConfirm(null)}>
             <motion.div className="confirm-dialog-card" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} onClick={e => e.stopPropagation()}>
               <h3>{showConfirm.title}</h3>
               <p>{showConfirm.message}</p>
               <div className="dialog-actions">
-                <button className="btn-secondary-outline" onClick={() => setShowConfirm(null)}>Dismiss</button>
-                <button className="btn-danger-confirm" onClick={() => { showConfirm.onConfirm(); setShowConfirm(null); }}>Proceed</button>
+                <button type="button" className="btn-secondary-outline" onClick={() => setShowConfirm(null)}>Dismiss</button>
+                <button type="button" className="btn-danger-confirm" onClick={() => { showConfirm.onConfirm(); setShowConfirm(null); }}>Proceed</button>
               </div>
             </motion.div>
           </div>
@@ -393,7 +419,7 @@ const Dashboard = () => {
       {/* Details Modal */}
       <AnimatePresence>
         {selectedBooking && (
-          <div className="modal-overlay" onClick={() => setSelectedBooking(null)}>
+          <div className="modal-overlay" role="presentation" onClick={() => setSelectedBooking(null)}>
             <motion.div className="booking-modal" style={{ background: 'transparent', boxShadow: 'none', padding: 0 }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} onClick={e => e.stopPropagation()}>
               <Ticket 
                 pnr={selectedBooking.pnr}
@@ -408,30 +434,36 @@ const Dashboard = () => {
                 status={selectedBooking.status}
                 passengers={selectedBooking.passengers || []}
               />
-              <button className="btn btn-primary" style={{ width: '100%', marginTop: 16 }} onClick={() => setSelectedBooking(null)}>Close</button>
+              <button type="button" className="btn btn-primary" style={{ width: '100%', marginTop: 16 }} onClick={() => setSelectedBooking(null)}>Close</button>
             </motion.div>
           </div>
         )}
 
         {/* Cancellation Selection */}
         {cancelTarget && !showConfirm && (
-          <div className="modal-overlay" onClick={() => setCancelTarget(null)}>
+          <div className="modal-overlay" role="presentation" onClick={() => setCancelTarget(null)}>
             <motion.div className="booking-modal" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} onClick={e => e.stopPropagation()} style={{ padding: 24 }}>
               <h3>Cancel Trip</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '20px 0' }}>
                 {(cancelTarget.passengers || []).map((p: any) => (
                   <label key={p.name} style={{ display: 'flex', justifyContent: 'space-between', padding: 12, border: '1px solid #eee', borderRadius: 12, opacity: p.status === 'CAN' ? 0.5 : 1 }}>
                     <div style={{ display: 'flex', gap: 12 }}>
-                      <input type="checkbox" disabled={p.status === 'CAN'} checked={paxToCancel.includes(p.name)} onChange={() => setPaxToCancel(prev => prev.includes(p.name) ? prev.filter(n => n !== p.name) : [...prev, p.name])} />
+                      <input
+                        type="checkbox"
+                        disabled={p.status === 'CAN'}
+                        checked={paxToCancel.includes(p.name)}
+                        onChange={() => setPaxToCancel(prev => prev.includes(p.name) ? prev.filter(n => n !== p.name) : [...prev, p.name])}
+                        aria-label={`Select ${p.name} for cancellation`}
+                      />
                       <span style={{ fontWeight: 700 }}>{p.name}</span>
                     </div>
-                    <span style={{ fontSize: '11px', fontWeight: 800 }}>{p.status}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 800 }}>{p.status}</span>
                   </label>
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 12 }}>
-                <button className="btn btn-outline" onClick={() => setCancelTarget(null)} style={{ flex: 1 }}>Back</button>
-                <button className="btn btn-primary" style={{ flex: 1, background: '#ef4444', borderColor: '#ef4444' }} onClick={handleConfirmCancel} disabled={paxToCancel.length === 0}>Cancel Selected</button>
+                <button type="button" className="btn btn-outline" onClick={() => setCancelTarget(null)} style={{ flex: 1 }}>Back</button>
+                <button type="button" className="btn btn-primary" style={{ flex: 1, background: '#ef4444', borderColor: '#ef4444' }} onClick={handleConfirmCancel} disabled={paxToCancel.length === 0}>Cancel Selected</button>
               </div>
             </motion.div>
           </div>

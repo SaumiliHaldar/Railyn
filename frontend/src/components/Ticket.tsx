@@ -61,7 +61,7 @@ const Ticket: React.FC<TicketProps> = ({
       .then(res => res.json())
       .then(data => setQrData(data.qr_data))
       .catch(() => setQrData(null));
-  }, [pnr, passengers.length]);
+  }, [pnr, primaryPax.name, primaryPax.age, passengers.length, trainNumber, fromStn, toStn, date, classType]);
 
   return (
     <div className="physical-ticket">
@@ -90,13 +90,13 @@ const Ticket: React.FC<TicketProps> = ({
           <div className="duration">{date ? formatDate(date) : 'TBD'}</div>
           <div className="time">{arrivalTime || '--:--'}</div>
         </div>
-
+ 
         <div className="ticket-visual-path">
           <div className="dot"></div>
           <div className="path-line"><div className="train-icon-box"><Train size={13} /></div></div>
           <div className="dot"></div>
         </div>
-
+ 
         <div className="ticket-stn-row">
           <div className="stn-name">
             <div className="stn-city">{fromStn || '---'}</div>
@@ -108,11 +108,11 @@ const Ticket: React.FC<TicketProps> = ({
           </div>
         </div>
       </div>
-
+ 
       <div className="ticket-divider">
         <div className="dotted-line"></div>
       </div>
-
+ 
       <div className="ticket-footer-details">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px' }}>
           <div style={{ flex: 1 }}>
@@ -120,7 +120,7 @@ const Ticket: React.FC<TicketProps> = ({
               <span className="label">Booking Reference (PNR)</span>
               <div className="ref-num">{pnr}</div>
             </div>
-
+ 
             <span className="label" style={{ marginBottom: '8px' }}>Passengers & Seats</span>
             <div className="pax-seats-list" style={{ maxHeight: '120px', overflowY: 'auto' }}>
               {passengers.map((p, idx) => {
@@ -138,7 +138,7 @@ const Ticket: React.FC<TicketProps> = ({
                         {p.name}
                         {p.age ? <small style={{ opacity: 0.5 }}> ({p.age})</small> : null}
                       </span>
-                      {isCancelled && <span style={{ fontSize: '10px', background: '#FF4D4D', color: 'white', padding: '1px 4px', borderRadius: '4px', fontWeight: 900 }}>CAN</span>}
+                      {isCancelled && <span style={{ fontSize: '12px', background: '#FF4D4D', color: 'white', padding: '1px 4px', borderRadius: '4px', fontWeight: 900 }}>CAN</span>}
                     </div>
                     <span style={{ 
                       fontSize: '13px', 

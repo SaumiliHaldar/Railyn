@@ -1,5 +1,5 @@
 import { useAuth, useUser } from "@clerk/clerk-react";
-import { Search, MapPin, Calendar, Train, Clock, X, Star, Trash2 } from "lucide-react";
+import { Search, MapPin, Calendar, Train, Clock, X, Star, Trash2, ArrowLeftRight } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -129,6 +129,7 @@ const Home = () => {
   const [chartResult, setChartResult] = useState<ChartResult | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState<any | null>(null);
+  const [swapRotation, setSwapRotation] = useState(0);
   const [chartDate, setChartDate] = useState(localToday());
   const [viewingTicket, setViewingTicket] = useState<BookingData | null>(null);
 
@@ -166,7 +167,7 @@ const Home = () => {
     if (f) setFromStn(f);
     if (t) setToStn(t);
     if (d) setDate(d);
-  }, [user]);
+  }, [user, getToken]);
 
   const fetchSavedPassengers = async (skipReset = false) => {
     if (!user) {
@@ -277,6 +278,10 @@ const Home = () => {
 
   const handleSearch = async () => {
     if (!fromStn || !toStn) return;
+    if (date < localToday()) {
+      showToast("Travel date cannot be in the past.", "error");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/trn_search?from_stn=${fromStn.split(' - ')[0]}&to_stn=${toStn.split(' - ')[0]}`);
@@ -406,9 +411,10 @@ const Home = () => {
               <div className="search-form-container">
                 <div className="search-form">
                   <div className="input-group" style={{ position: 'relative' }}>
-                    <label>From</label>
+                    <label htmlFor="from-station-input">From</label>
                     <MapPin size={18} style={{ position: 'absolute', left: '16px', bottom: '16px', color: 'var(--primary)' }} />
                     <input 
+                      id="from-station-input"
                       type="text" 
                       placeholder="Select from location" 
                       value={fromStn}
@@ -421,22 +427,49 @@ const Home = () => {
                       {fromSuggestions.length > 0 && (
                         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="suggestions">
                           {fromSuggestions.map(s => (
-                            <div key={s.code} className="suggestion-item" onClick={() => {
-                              setFromStn(`${s.code} - ${s.name}`);
-                              setFromSuggestions([]);
-                            }}>
+                            <button
+                              type="button"
+                              key={s.code}
+                              className="suggestion-item"
+                              style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', padding: '12px 16px', display: 'block' }}
+                              onClick={() => {
+                                setFromStn(`${s.code} - ${s.name}`);
+                                setFromSuggestions([]);
+                              }}
+                            >
                               <strong>{s.code}</strong> - {s.name}
-                            </div>
+                            </button>
                           ))}
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
-                  
+
+                  {/* Swap button — own grid column, spacer aligns it with input center */}
+                  <div className="swap-col">
+                    <motion.button
+                      type="button"
+                      className="swap-btn"
+                      animate={{ rotate: swapRotation }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                      onClick={() => {
+                        const temp = fromStn;
+                        setFromStn(toStn);
+                        setToStn(temp);
+                        setFromSuggestions([]);
+                        setToSuggestions([]);
+                        setSwapRotation(r => r + 180);
+                      }}
+                    >
+                      <ArrowLeftRight size={15} className="swap-icon" />
+                    </motion.button>
+                  </div>
+
                   <div className="input-group" style={{ position: 'relative' }}>
-                    <label>To</label>
+                    <label htmlFor="to-station-input">To</label>
                     <MapPin size={18} style={{ position: 'absolute', left: '16px', bottom: '16px', color: 'var(--primary)' }} />
                     <input 
+                      id="to-station-input"
                       type="text" 
                       placeholder="Select to location" 
                       value={toStn}
@@ -449,12 +482,18 @@ const Home = () => {
                       {toSuggestions.length > 0 && (
                         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="suggestions">
                           {toSuggestions.map(s => (
-                            <div key={s.code} className="suggestion-item" onClick={() => {
-                              setToStn(`${s.code} - ${s.name}`);
-                              setToSuggestions([]);
-                            }}>
+                            <button
+                              type="button"
+                              key={s.code}
+                              className="suggestion-item"
+                              style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', padding: '12px 16px', display: 'block' }}
+                              onClick={() => {
+                                setToStn(`${s.code} - ${s.name}`);
+                                setToSuggestions([]);
+                              }}
+                            >
                               <strong>{s.code}</strong> - {s.name}
-                            </div>
+                            </button>
                           ))}
                         </motion.div>
                       )}
@@ -462,16 +501,16 @@ const Home = () => {
                   </div>
 
                   <div className="input-group">
-                    <label>Date</label>
+                    <label htmlFor="date-input">Date</label>
                     <div style={{ position: 'relative' }}>
                       <Calendar size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
-                      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ paddingLeft: '44px' }} />
+                      <input id="date-input" type="date" value={date} min={localToday()} onChange={(e) => setDate(e.target.value)} style={{ paddingLeft: '44px' }} />
                     </div>
                   </div>
 
                   <div className="input-group">
-                    <label>All Class</label>
-                    <select value={classType} onChange={(e) => setClassType(e.target.value)}>
+                    <label htmlFor="class-select">All Class</label>
+                    <select id="class-select" value={classType} onChange={(e) => setClassType(e.target.value)}>
                       <option value="">All Class</option>
                       <option value="1AC">AC First Class (1A)</option>
                       <option value="2AC">AC 2 Tier (2A)</option>
@@ -480,8 +519,8 @@ const Home = () => {
                     </select>
                   </div>
 
-                  <button className="search-btn" onClick={handleSearch} disabled={loading}>
-                    {loading ? "..." : <Search size={22} />}
+                  <button type="button" className="search-btn" onClick={handleSearch} disabled={loading}>
+                    {loading ? <div className="search-spinner" /> : <Search size={22} />}
                   </button>
                 </div>
               </div>
@@ -489,8 +528,9 @@ const Home = () => {
               <div className="pnr-search-container search-form-container">
                 <div className="search-row">
                   <div className="input-group" style={{ flex: 1, minWidth: '200px' }}>
-                    <label>Enter 10-digit PNR</label>
+                    <label htmlFor="pnr-input">Enter 10-digit PNR</label>
                     <input 
+                      id="pnr-input"
                       type="text" 
                       placeholder="e.g. 1234567890" 
                       value={pnrInput}
@@ -499,6 +539,7 @@ const Home = () => {
                     />
                   </div>
                   <button 
+                    type="button"
                     className="btn btn-primary search-action-btn" 
                     onClick={checkPnrStatus}
                     disabled={pnrLoading}
@@ -544,6 +585,7 @@ const Home = () => {
                     </div>
 
                     <button 
+                      type="button"
                       className="btn btn-outline" 
                       style={{ width: '100%', borderColor: '#e2e8f0', color: '#1e293b' }}
                       onClick={() => setViewingTicket(pnrResult)}
@@ -557,8 +599,9 @@ const Home = () => {
               <div className="chart-search-container search-form-container">
                 <div className="chart-form-row">
                   <div className="input-group" style={{ flex: 2, minWidth: '200px' }}>
-                    <label>Train Number / Name</label>
+                    <label htmlFor="chart-train-input">Train Number / Name</label>
                     <input 
+                      id="chart-train-input"
                       type="text" 
                       placeholder="e.g. 12222 or Duronto" 
                       value={chartTrain}
@@ -567,8 +610,9 @@ const Home = () => {
                     />
                   </div>
                   <div className="input-group" style={{ flex: 1, minWidth: '160px' }}>
-                    <label>Journey Date</label>
+                    <label htmlFor="chart-date-input">Journey Date</label>
                     <input 
+                      id="chart-date-input"
                       type="date" 
                       value={chartDate}
                       onChange={(e) => setChartDate(e.target.value)}
@@ -576,6 +620,7 @@ const Home = () => {
                     />
                   </div>
                   <button 
+                    type="button"
                     className="btn btn-primary search-action-btn" 
                     onClick={getChartStatus}
                     disabled={chartLoading}
@@ -604,6 +649,7 @@ const Home = () => {
                         {chartResult.coaches.map((c: any) => (
                           <button
                             key={c.coach}
+                            type="button"
                             className="coach-chip"
                             style={{
                               borderColor: selectedCoach?.coach === c.coach ? '#22c55e' : '#e2e8f0',
@@ -698,7 +744,24 @@ const Home = () => {
           </div>
           
           <div className="train-list">
-            {filteredTrains.map((train, idx) => (
+            {loading ? (
+              [1, 2, 3].map(i => (
+                <div key={i} className="skeleton-train-card">
+                  <div className="shimmer-row">
+                    <div className="shimmer-box shimmer-line-lg" />
+                    <div className="shimmer-box shimmer-line-sm" style={{ marginLeft: 'auto' }} />
+                  </div>
+                  <div className="shimmer-row" style={{ justifyContent: 'center', gap: '32px' }}>
+                    <div className="shimmer-box" style={{ width: 60, height: 28 }} />
+                    <div className="shimmer-box" style={{ flex: 1, height: 8, borderRadius: 4 }} />
+                    <div className="shimmer-box" style={{ width: 60, height: 28 }} />
+                  </div>
+                  <div className="shimmer-row">
+                    {[1,2,3].map(j => <div key={j} className="shimmer-box" style={{ flex: 1, height: 90, borderRadius: 16 }} />)}
+                  </div>
+                </div>
+              ))
+            ) : filteredTrains.map((train, idx) => (
               <motion.div 
                 initial={{ opacity: 0, x: -20 }} 
                 animate={{ opacity: 1, x: 0 }} 
@@ -717,8 +780,7 @@ const Home = () => {
                       <span className="stn-code">{fromStn.split(' - ')[0]}</span>
                     </div>
                     <div className="duration-line">
-                      <Clock size={14} />
-                      <span>{train.duration_h}h {train.duration_m}m</span>
+                      <span className="duration-pill"><Clock size={11} />{train.duration_h}h {train.duration_m}m</span>
                       <div className="line"></div>
                     </div>
                     <div className="stn-info">

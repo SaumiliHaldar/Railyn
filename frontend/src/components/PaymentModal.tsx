@@ -153,7 +153,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     <div style={{ padding: '32px 24px' }}>
       <div style={{ textAlign: 'center', marginBottom: '28px' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#e0f2fe', padding: '6px 16px', borderRadius: '30px', marginBottom: '16px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Secure Razorpay Checkout</span>
+          <span style={{ fontSize: '12px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Secure Razorpay Checkout</span>
         </div>
         <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>Confirm & Pay</h2>
         <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Secure your journey with just one click</p>
@@ -173,15 +173,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             <span style={{ fontSize: '14px', color: '#64748b' }}>Fare Breakdown</span>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '24px', fontWeight: 900, color: '#1E6F2B' }}>₹{totalFare}</div>
-              <div style={{ fontSize: '10px', color: '#94a3b8' }}>Inclusive of GST & Platform fees</div>
+              <div style={{ fontSize: '12px', color: '#94a3b8' }}>Inclusive of GST & Platform fees</div>
             </div>
           </div>
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: '12px' }}>
-        <button className="btn btn-outline" style={{ flex: 1, height: '56px', borderRadius: '16px' }} onClick={onCancel}>Cancel</button>
+        <button type="button" className="btn btn-outline" style={{ flex: 1, height: '56px', borderRadius: '16px' }} onClick={onCancel}>Cancel</button>
         <button 
+          type="button"
           className="btn btn-primary" 
           style={{ flex: 1.5, height: '56px', borderRadius: '16px', fontWeight: 800, background: 'linear-gradient(135deg, #1E6F2B 0%, #2d9a3e 100%)' }} 
           onClick={handlePayment}
@@ -192,7 +193,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       
       <div style={{ textAlign: 'center', marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-        <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>100% Encrypted & Secure</span>
+        <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>100% Encrypted & Secure</span>
       </div>
     </div>
   );

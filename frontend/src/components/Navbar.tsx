@@ -8,7 +8,7 @@ const Navbar = () => {
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -26,7 +26,7 @@ const Navbar = () => {
       <div className="nav-auth">
         <SignedOut>
           <SignInButton mode="modal">
-            <button className="btn btn-primary" style={{ padding: '10px 24px', borderRadius: 'var(--radius-pill)', fontWeight: '700' }}>Login</button>
+            <button type="button" className="btn btn-primary" style={{ padding: '10px 24px', borderRadius: 'var(--radius-pill)', fontWeight: '700' }}>Login</button>
           </SignInButton>
         </SignedOut>
         <SignedIn>
