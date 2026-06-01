@@ -64,7 +64,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           // Step 3: Unified Secure Transaction Flow: Cryptographic signatures are sent to book_tkt for verification
           try {
             await finalizeBooking(
-              token,
               response.razorpay_order_id,
               response.razorpay_payment_id,
               response.razorpay_signature
@@ -92,17 +91,18 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   };
 
   const finalizeBooking = async (
-    token: string | null,
     orderId?: string,
     paymentId?: string,
     signature?: string
   ) => {
     try {
+      // Fetch a fresh token right before request to prevent token expiration during payment flow
+      const freshToken = await getToken();
       const res = await fetch(`${apiUrl}/book_tkt`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${freshToken}`
         },
         body: JSON.stringify({
           train_number: selectedTrain.train_number,

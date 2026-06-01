@@ -75,14 +75,18 @@
     <tbody>
       {% for p in passengers %}
       {% set p_status = p.get('status', status) %}
-      {% set span_style = 'background-color: #F0F7F1; color: #1E6F2B; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold;' if p_status == 'CNF' else 'background-color: #fffbeb; color: #b45309; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold;' %}
-      {% set span_html = '<span style="' ~ span_style ~ '">' ~ p_status ~ '</span>' %}
       <tr style="border-bottom:1px solid #e2e8f0; font-size:13px; text-align: left;">
         <td style="padding:10px; color:#334155; text-align: center;">{{ loop.index }}</td>
         <td style="padding:10px; font-weight:600; color:#0f172a;">{{ p.name }}</td>
         <td style="padding:10px; color:#475569; text-align: center;">{{ p.age }} / {{ p.get('gender', 'M') }}</td>
         <td style="padding:10px; color:#1E6F2B; font-weight:bold; text-align: center;">{{ p.get('coach', 'WL') }}-{{ p.get('seat', wl_position if status == 'WL' else loop.index) }}</td>
-        <td style="padding:10px; text-align: center;">{{ span_html | safe }}</td>
+        <td style="padding:10px; text-align: center;">
+          {% if p_status == 'CNF' %}
+            <span style="background-color: #F0F7F1; color: #1E6F2B; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold;">CNF</span>
+          {% else %}
+            <span style="background-color: #fffbeb; color: #b45309; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold;">{{ p_status }}</span>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

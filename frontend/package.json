@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ark-ui/react": "^5.37.0",
     "@clerk/clerk-react": "^5.61.6",
     "@clerk/themes": "^2.4.57",
     "@tailwindcss/vite": "^4.3.0",

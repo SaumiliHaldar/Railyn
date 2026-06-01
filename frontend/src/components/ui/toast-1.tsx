@@ -1,49 +1,50 @@
 'use client';
-import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CircleCheck, AlertCircle, AlertTriangle, Info } from 'lucide-react';
+
+import React, { createContext, useContext, useCallback } from 'react';
+import { Toast, Toaster, createToaster } from '@ark-ui/react/toast';
+import { Portal } from '@ark-ui/react/portal';
+import { Check, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 type ToastPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
 
-interface Toast {
-  id: number;
-  message: string;
-  type: ToastType;
-}
-
 interface ToastContextType {
-  showToast: (message: string, type?: ToastType, position?: ToastPosition) => void;
+  showToast: (message: string, type?: ToastType, _position?: ToastPosition) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
+// Ark UI's createToaster manages placement, overlap, and gap.
+const toaster = createToaster({
+  placement: 'bottom-end',
+  gap: 16,
+  overlap: true,
+});
+
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [toasts, setToasts] = useState<{ toast: Toast; position: ToastPosition }[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
+  const showToast = useCallback((message: string, type: ToastType = 'info', _position?: ToastPosition) => {
+    const defaultTitles = {
+      success: 'Success!',
+      error: 'Error occurred',
+      warning: 'Warning',
+      info: 'Information',
+    };
 
-  useEffect(() => {
-    setIsMounted(true);
+    toaster.create({
+      title: defaultTitles[type],
+      description: message,
+      type: type,
+    });
   }, []);
-
-  const showToast = useCallback((message: string, type: ToastType = 'info', position: ToastPosition = 'bottom-right') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { toast: { id, message, type }, position }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(({ toast }) => toast.id !== id));
-    }, 5000);
-  }, []);
-
-  if (!isMounted) {
-    return null;
-  }
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'].map((position) => (
-        <ToastContainer key={position} toasts={toasts.filter(t => t.position === position)} position={position as ToastPosition} />
-      ))}
+      <Portal>
+        <Toaster toaster={toaster}>
+          {(toast) => <ToastItem toast={toast} />}
+        </Toaster>
+      </Portal>
     </ToastContext.Provider>
   );
 };
@@ -56,81 +57,55 @@ export const useToast = () => {
   return context;
 };
 
-interface ToastContainerProps {
-  toasts: { toast: Toast; position: ToastPosition }[];
-  position: ToastPosition;
-}
-
-const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, position }) => {
-  const isMobile = typeof window !== 'undefined' ? window.innerWidth <= 640 : false; 
-  const adjustedPosition = isMobile ? (position.startsWith('top') ? 'top' : 'bottom') : position;
-
-  const getPositionClasses = () => {
-    switch (adjustedPosition) {
-      case 'top-left':
-        return 'top-4 left-4';
-      case 'top-right':
-        return 'top-4 right-4';
-      case 'bottom-left':
-        return 'bottom-4 left-4';
-      case 'bottom-right':
-        return 'bottom-4 right-4';
-      case 'top':
-        return 'top-4 left-1/2 transform -translate-x-1/2';
-      case 'bottom':
-        return 'bottom-4 left-1/2 transform -translate-x-1/2';
-      case 'center':
-        return 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2';
-      default:
-        return '';
-    }
+// Premium, beautiful, modern toast card design that matches high-end Figma specs.
+// Completely avoids overlapping borders or clipped icons by using perfectly spaced layout tokens.
+const ToastItem = ({ toast }: { toast: any }) => {
+  const toastTypes = {
+    success: {
+      icon: Check,
+      colors: 'bg-emerald-50/95 dark:bg-emerald-950/90 border border-emerald-200/80 dark:border-emerald-800/50 text-emerald-900 dark:text-emerald-50 shadow-[0_8px_30px_rgb(16,185,129,0.08)]',
+      iconContainer: 'bg-emerald-500 text-white rounded-full p-1 shrink-0 flex items-center justify-center shadow-sm',
+    },
+    error: {
+      icon: AlertCircle,
+      colors: 'bg-rose-50/95 dark:bg-rose-950/90 border border-rose-200/80 dark:border-rose-800/50 text-rose-900 dark:text-rose-50 shadow-[0_8px_30px_rgb(244,63,94,0.08)]',
+      iconContainer: 'bg-rose-500 text-white rounded-full p-1 shrink-0 flex items-center justify-center shadow-sm',
+    },
+    warning: {
+      icon: AlertTriangle,
+      colors: 'bg-amber-50/95 dark:bg-amber-950/90 border border-amber-200/80 dark:border-amber-800/50 text-amber-900 dark:text-amber-50 shadow-[0_8px_30px_rgb(245,158,11,0.08)]',
+      iconContainer: 'bg-amber-500 text-white rounded-full p-1 shrink-0 flex items-center justify-center shadow-sm',
+    },
+    info: {
+      icon: Info,
+      colors: 'bg-sky-50/95 dark:bg-sky-950/90 border border-sky-200/80 dark:border-sky-800/50 text-sky-900 dark:text-sky-50 shadow-[0_8px_30px_rgb(14,165,233,0.08)]',
+      iconContainer: 'bg-sky-500 text-white rounded-full p-1 shrink-0 flex items-center justify-center shadow-sm',
+    },
   };
 
-  const getInitialY = () => {
-    if (adjustedPosition.startsWith('top')) {
-      return -50; 
-    } else if (adjustedPosition === 'center') {
-      return 0; 
-    } else {
-      return 50; 
-    }
-  };
+  const config = toastTypes[toast.type as ToastType] || toastTypes.info;
+  const Icon = config.icon;
 
   return (
-    <div className={`fixed ${getPositionClasses()} w-full max-w-full sm:max-w-sm px-4 sm:px-0 space-y-2 z-[9999]`}>
-      <AnimatePresence>
-        {toasts.map(({ toast }) => (
-          <motion.div
-            key={toast.id}
-            initial={{ opacity: 0, y: getInitialY() }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: getInitialY() }}
-            transition={{ duration: 0.4, ease: 'easeInOut' }}
-          >
-            <ToastComponent {...toast} />
-          </motion.div>
-        ))}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-const ToastComponent: React.FC<Toast> = ({ message, type }) => {
-  const typeConfig = {
-    success: { icon: CircleCheck, bgColor: 'bg-green-50', textColor: 'text-green-800', borderColor: 'border-green-200' },
-    error: { icon: AlertCircle, bgColor: 'bg-red-50', textColor: 'text-red-800', borderColor: 'border-red-200' },
-    warning: { icon: AlertTriangle, bgColor: 'bg-yellow-50', textColor: 'text-yellow-800', borderColor: 'border-yellow-200' },
-    info: { icon: Info, bgColor: 'bg-blue-50', textColor: 'text-blue-800', borderColor: 'border-blue-200' }
-  };
-
-  const { icon: Icon, bgColor, textColor, borderColor } = typeConfig[type];
-
-  return (
-    <div className={`${bgColor} ${borderColor} border rounded-lg shadow-lg p-4 flex items-center justify-between max-w-full`}>
-      <div className="flex items-center space-x-3">
-        <Icon className={`${textColor} w-5 h-5`} />
-        <p className={`${textColor} font-medium`}>{message}</p>
+    <Toast.Root
+      className={`rounded-xl min-w-80 max-w-sm p-4 relative overflow-hidden transition-all duration-300 ease-default will-change-transform h-(--height) opacity-(--opacity) translate-x-(--x) translate-y-(--y) scale-(--scale) z-(--z-index) backdrop-blur-md ${config.colors}`}
+    >
+      <div className="flex items-start gap-3.5 pr-6">
+        <div className={config.iconContainer}>
+          <Icon className="w-3.5 h-3.5 stroke-[3]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <Toast.Title className="font-bold text-sm tracking-tight">
+            {toast.title}
+          </Toast.Title>
+          <Toast.Description className="text-xs opacity-90 mt-0.5 leading-relaxed break-words font-medium">
+            {toast.description}
+          </Toast.Description>
+        </div>
       </div>
-    </div>
+      <Toast.CloseTrigger className="absolute top-3 right-3 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors text-current opacity-70 hover:opacity-100">
+        <X className="w-3.5 h-3.5" />
+      </Toast.CloseTrigger>
+    </Toast.Root>
   );
 };
