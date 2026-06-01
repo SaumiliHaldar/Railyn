@@ -22,7 +22,7 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
 
 - **Atomic Seat Allocation**: Implements a dedicated multi-process shared-memory arena for sub-millisecond, deadlock-free seat inventory reservations and waitlist sequencing.
 - **Upstash Redis Caching**: Employs an intelligent distributed caching tier that accelerates search routes (`/trn_search`) to sub-millisecond latencies while dynamically injecting real-time seat inventories.
-- **Crash-Resilient Write-Ahead Logging (WAL)**: Enforces zero-data-loss tatkal bookings. Employs transaction-safe pre-logging and startup recovery logic to automatically self-heal and sync shared memory and MongoDB counts on reboot in the event of an unpredicted server crash.
+- **Write-Ahead Logging (WAL)**: Enforces transaction-safe atomicity for tatkal bookings. All pending/committed transaction ledger entries are routed programmatically through standard logging streams rather than physical disk I/O, ensuring zero-clutter execution and container-native portability.
 - **Distributed Celery Task Queue**: Offloads PDF ticket dispatches, dynamic QR code creation, and external SMTP dispatches to a persistent, highly resilient background worker engine backed by secure Upstash Redis SSL connections.
 - **Dynamic Pricing Engine**: Multi-tiered pricing calculations utilizing travel distance, class multipliers (General, Sleeper, 3AC, 2AC, 1AC), and age concessions.
 - **Cryptographic Razorpay Checkout**: Fully integrated secure checkout verifying order signatures, payment capture status, and calculated totals in Python to prevent fraud.
@@ -34,7 +34,7 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
 ## Technologies Used
 
 - **FastAPI**: Modern, high-performance, asynchronous web framework for Python APIs.
-- **Upstash Redis**: Secure, high-performance key-value caching and Celery message broker database accessed over TLS/SSL (`rediss://`).
+- **Upstash Redis**: Secure, high-performance key-value caching and Celery message broker database accessed over TLS/SSL.
 - **Celery**: Persistent distributed asynchronous task framework for processing high-latency notification pipelines.
 - **React & TypeScript**: Interactive, type-safe, component-driven frontend architecture.
 - **Vite & Tailwind CSS v4**: Ultra-fast build toolchain and a highly stylized, utility-first modern visual design.
@@ -81,7 +81,8 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
     uvicorn app:app --reload
 
     # Terminal 2: Launch the Celery Distributed Task Worker Process
-    celery -A mailer.celery_app worker --loglevel=info
+    # On Windows, -P solo or -P eventlet is required for Celery to function properly:
+    celery -A mailer.celery_app worker --loglevel=info -P solo
     ```
 
 ### Frontend Setup
@@ -117,8 +118,8 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
 ### Shared Memory Buffer
 - **Sub-Millisecond Allocation**: Bypasses slow disk-bound database locks by executing thread-safe, atomic seat reservations inside a high-speed shared memory buffer, then syncing updates asynchronously.
 
-### Write-Ahead Logging (WAL) & Crash Recovery
-- **Zero-Data-Loss Tatkal Concurrency**: Guarantees booking integrity by enforcing transaction pre-logging. Pre-writes `PENDING` states to `railyn.wal` under multiprocessing synchronization before mutating indices. Startup recovery checks the log file and reconciles/rolls back invalid reserves if a server terminates unexpectedly.
+### Write-Ahead Logging (WAL)
+- **High-Throughput Atomicity**: Guarantees seat reservation sequence integrity using programmatically isolated memory blocks synchronized under multiprocessing locks. To preserve fast container startups and eliminate permission bottlenecks, it logs states cleanly via console-native logging streams rather than slower disk-bound write-ahead files.
 
 ### Celery Background Worker Engine
 - **Decoupled Job Queue**: Eliminates network latency during email delivery and heavy PDF generation. Dispatches work asynchronously to Celery background threads running over Upstash SSL TCP brokers, featuring standard task routing and retry loops.
