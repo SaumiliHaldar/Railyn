@@ -1,5 +1,5 @@
-import { useAuth, useUser } from "@clerk/clerk-react";
-import { Search, MapPin, Calendar, Train, Clock, X, Star, Trash2, ArrowLeftRight } from "lucide-react";
+import { useAuth, useUser, useClerk } from "@clerk/clerk-react";
+import { Search, MapPin, Calendar, Train, Clock, X, Star, Trash2, ArrowLeftRight, AlertCircle } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -101,6 +101,7 @@ const Home = () => {
   const [activeTab, setActiveTab] = useState("book");
   const { getToken } = useAuth();
   const { user } = useUser();
+  const { openSignIn } = useClerk();
   const { showToast } = useToast();
   const navigate = useNavigate();
   
@@ -299,7 +300,11 @@ const Home = () => {
   };
 
   const handleBook = async () => {
-    if (!user) return showToast("Please login to book tickets", "warning");
+    if (!user) {
+      showToast("Please login to book tickets", "warning");
+      openSignIn();
+      return;
+    }
     if (passengers.some(p => !p.name || !p.age)) {
       showToast("Please fill all passenger details", "error");
       return;
@@ -796,19 +801,20 @@ const Home = () => {
                     .map(([cls, count]) => {
                       const fare = (train as any).fares?.[cls] || 0;
                       return (
-                        <div key={cls} className={`seat-box ${count > 0 ? 'available' : 'wl'}`}>
+                        <div 
+                          key={cls} 
+                          className={`seat-box ${count > 0 ? 'available' : 'wl'}`}
+                          onClick={() => {
+                            setSelectedTrain(train);
+                            setSelectedClass(cls);
+                          }}
+                        >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
                             <span className="class-name">{cls}</span>
-                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#1E6F2B' }}>₹{fare}</span>
+                            <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)' }}>₹{fare}</span>
                           </div>
                           <span className="seat-count">{count > 0 ? `AVL ${count}` : `WL ${Math.abs(count)}`}</span>
-                          <button 
-                            className="book-mini-btn"
-                            onClick={() => {
-                              setSelectedTrain(train);
-                              setSelectedClass(cls);
-                            }}
-                          >
+                          <button className="book-mini-btn">
                             Book Now
                           </button>
                         </div>
@@ -953,6 +959,24 @@ const Home = () => {
                   </div>
 
                   <div className="modal-body" style={{ maxHeight: '55vh', overflowY: 'auto', padding: '20px 24px' }}>
+                    {/* Guest Login Warning Alert */}
+                    {!user && (
+                      <div style={{ 
+                        background: '#fffbeb', 
+                        border: '1px solid #fef3c7', 
+                        borderRadius: '12px', 
+                        padding: '12px 16px', 
+                        marginBottom: '20px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '12px' 
+                      }}>
+                        <AlertCircle size={20} color="#b45309" style={{ flexShrink: 0 }} />
+                        <span style={{ fontSize: '13px', color: '#92400e', fontWeight: 600 }}>
+                          You are currently searching as a guest. Please sign in to finalize your booking and seats.
+                        </span>
+                      </div>
+                    )}
                     {/* Select Travelling Passengers Grid */}
                     {user && savedPassengers.length > 0 && (
                       <div className="saved-passengers-selection" style={{ marginBottom: '24px' }}>
@@ -1109,8 +1133,16 @@ const Home = () => {
                       <div style={{ fontSize: '18px', fontWeight: 800, color: '#1E6F2B' }}>
                         ₹{selectedClass ? ((selectedTrain as any).fares?.[selectedClass] || 0) * passengers.length : 0}
                       </div>
-                      <button className="btn btn-primary" onClick={handleBook} style={{ height: '44px', padding: '0 32px' }}>
-                        Proceed to Pay
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={handleBook} 
+                        style={{ 
+                          height: '44px', 
+                          padding: '0 32px',
+                          background: !user ? 'linear-gradient(135deg, #1E6F2B 0%, #2d8a3f 100%)' : undefined
+                        }}
+                      >
+                        {user ? 'Proceed to Pay' : 'Login to Book'}
                       </button>
                     </div>
                   </div>

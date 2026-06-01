@@ -3,7 +3,7 @@ import json
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 import shared_mem
-from mailer import trigger_email
+from mailer import send_ticket_email_task
 
 load_dotenv()
 
@@ -65,7 +65,7 @@ async def handle_waitlist_upgrade(db, train_number, class_type):
             for p in wl_booking.get("passengers", [{"name": wl_booking.get("user_name", "Passenger")}])
         ]
             
-        asyncio.create_task(trigger_email("WL_UPGRADE", wl_booking.get("user_email", "passenger@railyn.co"), {
+        send_ticket_email_task.delay("WL_UPGRADE", wl_booking.get("user_email", "passenger@railyn.co"), {
             "user_name": wl_booking.get("user_name", "Valued Passenger"),
             "pnr": wl_booking.get("pnr"),
             "train_number": train_number,
@@ -73,7 +73,7 @@ async def handle_waitlist_upgrade(db, train_number, class_type):
             "class_type": class_type,
             "travel_date": wl_booking.get("travel_date", "N/A"),
             "passengers": passengers_data
-        }))
+        })
 
 async def handle_delay(db, delay_event):
     """The Controlled Delay Simulator"""

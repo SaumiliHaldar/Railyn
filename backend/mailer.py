@@ -8,9 +8,23 @@ from dotenv import load_dotenv
 from PIL import Image, ImageOps
 import io
 import jinja2
+from celery import Celery
 
 load_dotenv()
 logger = logging.getLogger("railyn.mailer")
+
+REDIS_URL = os.getenv("REDIS_URL")
+celery_app = Celery("mailer", broker=REDIS_URL, backend=REDIS_URL)
+
+celery_app.conf.update(
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    timezone="Asia/Kolkata",
+    enable_utc=True,
+    redis_backend_use_ssl={"ssl_cert_reqs": None} if "rediss://" in (REDIS_URL or "") else False,
+    broker_use_ssl={"ssl_cert_reqs": None} if "rediss://" in (REDIS_URL or "") else False,
+)
 
 APPS_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL")
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
@@ -206,5 +220,19 @@ async def trigger_email(email_type: str, email: str, data: dict):
     base_template = jinja_env.get_template("base.html")
     final_email_html = base_template.render(CONTENT=content_html, logo_src=logo_src)
 
-    # 5. Schedule in a background thread to prevent event-loop blocking
-    asyncio.create_task(asyncio.to_thread(send_to_apps_script, email, subject, final_email_html, pdf_html, pnr))
+    # 5. Execute Apps Script dispatch directly (blocking the worker thread/process)
+    logger.info(f"Dispatched Apps Script HTTP request for PNR: {pnr}")
+    send_to_apps_script(email, subject, final_email_html, pdf_html, pnr)
+
+
+@celery_app.task(bind=True, max_retries=5, default_retry_delay=10)
+def send_ticket_email_task(self, email_type, email, data):
+    """
+    Celery background task that executes trigger_email inside an asyncio runtime environment.
+    """
+    logger.info(f"Celery task started: Dispatching '{email_type}' email to {email}")
+    try:
+        asyncio.run(trigger_email(email_type, email, data))
+    except Exception as exc:
+        logger.error(f"Celery task failed with error: {exc}. Retrying...")
+        raise self.retry(exc=exc)

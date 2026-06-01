@@ -1,6 +1,7 @@
 import os
 import re
 import io
+import uuid
 import base64
 import requests
 import random
@@ -24,9 +25,11 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import mqtt_engine, shared_mem, pricing
 import razorpay
-from mailer import trigger_email
+from mailer import send_ticket_email_task
 from bson.objectid import ObjectId
 import logging
+import redis.asyncio as aioredis
+import json
 
 logging.basicConfig(
     level=logging.INFO,
@@ -123,14 +126,34 @@ async def lifespan(app: FastAPI):
     # Programmatically initialize crucial query indexes for high performance search
     await create_indexes(app.state.db)
     
+    # Initialize Upstash Redis Connection with fail-fast validation
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url or not (redis_url.startswith("redis://") or redis_url.startswith("rediss://")):
+        logger.critical("REDIS_URL environment variable is missing or invalid. Upstash Redis is strictly required.")
+        raise RuntimeError("REDIS_URL environment variable is required to connect to Upstash Redis (e.g. rediss://...).")
+    
+    try:
+        logger.info("Connecting to Upstash Redis...")
+        app.state.redis = aioredis.from_url(redis_url, decode_responses=True)
+        await app.state.redis.ping()
+        logger.info("Successfully connected to Upstash Redis!")
+    except Exception as e:
+        logger.critical(f"Failed to connect to Upstash Redis: {e}")
+        raise RuntimeError(f"Could not connect to Upstash Redis: {e}")
+    
     # Initialize Shared Memory for seat inventory
     logger.info("Initializing Shared Memory Box...")
     await shared_mem.init_shm(app.state.db)
     
+    # Recover WAL state from log files
+    logger.info("Running Crash-Resilient WAL Recovery...")
+    await shared_mem.wal_engine.recover_state(app.state.db)
+    
     yield
-    logger.info("Closing MongoDB connection and cleaning up SHM...")
+    logger.info("Closing MongoDB connection, cleaning up SHM, and closing Redis...")
     client.close()
     shared_mem.cleanup()
+    await app.state.redis.close()
 
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)
@@ -260,52 +283,71 @@ async def train_search(request: Request, from_stn: str, to_stn: str):
     from_stn = from_stn.upper()
     to_stn = to_stn.upper()
 
-    # We need to find trains where from_stn occurs BEFORE to_stn in the schedule.
-    # We use MongoDB Aggregation to perform this complex join efficiently.
-    pipeline = [
-        {"$match": {"station_code": from_stn}},
-        {"$lookup": {
-            "from": "schedules",
-            "let": {"t_num": "$train_number", "f_id": "$id"},
-            "pipeline": [
-                {"$match": {
-                    "$expr": {
-                        "$and": [
-                            {"$eq": ["$train_number", "$$t_num"]},
-                            {"$eq": ["$station_code", to_stn]},
-                            {"$gt": ["$id", "$$f_id"]} # Arrival must be after departure
-                        ]
-                    }
-                }}
-            ],
-            "as": "dest"
-        }},
-        {"$match": {"dest": {"$ne": []}}},
-        {"$lookup": {
-            "from": "trains",
-            "localField": "train_number",
-            "foreignField": "number",
-            "as": "train_info"
-        }},
-        {"$unwind": "$train_info"},
-        {"$unwind": "$dest"},
-        {"$project": {
-            "_id": 0,
-            "train_number": "$train_number",
-            "train_name": "$train_info.name",
-            "type": "$train_info.type",
-            "departure": "$departure",
-            "arrival": "$dest.arrival",
-            "duration_h": "$train_info.duration_h",
-            "duration_m": "$train_info.duration_m",
-            "seat_inventory": "$train_info.seat_inventory",
-            "distance": "$train_info.distance"
-        }},
-        {"$sort": {"departure": 1}}
-    ]
+    # 1. Check Upstash Redis Cache first
+    cache_key = f"railyn:search:{from_stn}:{to_stn}"
+    trains = None
+    try:
+        cached_data = await request.app.state.redis.get(cache_key)
+        if cached_data:
+            trains = json.loads(cached_data)
+            logger.info(f"Cache Hit for search: {from_stn} -> {to_stn}")
+    except Exception as e:
+        logger.error(f"Redis cache read error: {e}")
 
-    cursor = db.schedules.aggregate(pipeline)
-    trains = await cursor.to_list(length=100)
+    if trains is None:
+        # We need to find trains where from_stn occurs BEFORE to_stn in the schedule.
+        # We use MongoDB Aggregation to perform this complex join efficiently.
+        pipeline = [
+            {"$match": {"station_code": from_stn}},
+            {"$lookup": {
+                "from": "schedules",
+                "let": {"t_num": "$train_number", "f_id": "$id"},
+                "pipeline": [
+                    {"$match": {
+                        "$expr": {
+                            "$and": [
+                                {"$eq": ["$train_number", "$$t_num"]},
+                                {"$eq": ["$station_code", to_stn]},
+                                {"$gt": ["$id", "$$f_id"]} # Arrival must be after departure
+                            ]
+                        }
+                    }}
+                ],
+                "as": "dest"
+            }},
+            {"$match": {"dest": {"$ne": []}}},
+            {"$lookup": {
+                "from": "trains",
+                "localField": "train_number",
+                "foreignField": "number",
+                "as": "train_info"
+            }},
+            {"$unwind": "$train_info"},
+            {"$unwind": "$dest"},
+            {"$project": {
+                "_id": 0,
+                "train_number": "$train_number",
+                "train_name": "$train_info.name",
+                "type": "$train_info.type",
+                "departure": "$departure",
+                "arrival": "$dest.arrival",
+                "duration_h": "$train_info.duration_h",
+                "duration_m": "$train_info.duration_m",
+                "seat_inventory": "$train_info.seat_inventory",
+                "distance": "$train_info.distance"
+            }},
+            {"$sort": {"departure": 1}}
+        ]
+
+        cursor = db.schedules.aggregate(pipeline)
+        trains = await cursor.to_list(length=100)
+        logger.info(f"Cache Miss for search: {from_stn} -> {to_stn}. Fetched from MongoDB.")
+
+        # Cache static results in Upstash Redis for 1 hour (3600 seconds)
+        try:
+            await request.app.state.redis.set(cache_key, json.dumps(trains), ex=3600)
+        except Exception as e:
+            logger.error(f"Redis cache write error: {e}")
     
     # Inject real-time seat counts from shared memory
     for t in trains:
@@ -412,9 +454,12 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
     wl_position = 0
     assigned_passengers = []
     
+    # Generate unique transaction ID for WAL crash resilience tracking
+    tx_id = str(uuid.uuid4())
+    
     # Attempt atomic process-safe reservation
     success, remaining_seats = shared_mem.reserve_seats_atomic(
-        booking.train_number, booking.class_type, num_passengers
+        booking.train_number, booking.class_type, num_passengers, tx_id=tx_id
     )
     
     if success:
@@ -462,8 +507,9 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
     # Generate 10-digit PNR
     pnr = "".join([str(random.randint(0, 9)) for _ in range(10)])
 
-    # Create booking record
+    # Create booking record with tx_id for crash recovery mapping
     booking_record = {
+        "tx_id": tx_id,
         "user_id": user_id,
         "user_name": booking.user_name or "Unknown User",
         "user_email": booking.user_email or "Unknown Email",
@@ -488,8 +534,15 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
     
     result = await db.bookings.insert_one(booking_record)
     
-    # Trigger Non-blocking Booking Confirmation Email + PDF ERS Attachment
-    await trigger_email("BOOKING", booking.user_email or "passenger@railyn.co", {
+    # Write WAL commit log if the seat reservation succeeded
+    if success:
+        try:
+            shared_mem.wal_engine.write_commit_log(tx_id)
+        except Exception as e:
+            logger.error(f"Failed to write WAL commit log for {tx_id}: {e}")
+    
+    # Trigger Non-blocking Booking Confirmation Email + PDF ERS Attachment using Celery
+    send_ticket_email_task.delay("BOOKING", booking.user_email or "passenger@railyn.co", {
         "user_name": booking.user_name or "Valued Passenger",
         "pnr": pnr,
         "train_number": booking.train_number,
@@ -730,8 +783,8 @@ async def cancel_ticket(request: Request, cancel_req: CancelRequest, background_
     refund_amount = max(0, original_fare - cancellation_fee) if final_status == "CANCELLED" else (original_fare // len(current_passengers)) * num_cancelled_now - cancellation_fee
     refund_amount = max(0, refund_amount)
     
-    # Trigger Non-blocking Cancellation & Refund Notification
-    await trigger_email("CANCEL", booking.get("user_email", "passenger@railyn.co"), {
+    # Trigger Non-blocking Cancellation & Refund Notification using Celery
+    send_ticket_email_task.delay("CANCEL", booking.get("user_email", "passenger@railyn.co"), {
         "user_name": booking.get("user_name", "Valued Passenger"),
         "pnr": booking.get("pnr"),
         "train_number": booking.get("train_number"),
@@ -829,8 +882,8 @@ async def swap_ticket(request: Request, swap_req: SwapRequest, user_token: dict 
     
     res = await db.bookings.insert_one(new_booking)
     
-    # Trigger Non-blocking Swap Alert Notification
-    await trigger_email("SWAP", old_booking.get("user_email", "passenger@railyn.co"), {
+    # Trigger Non-blocking Swap Alert Notification using Celery
+    send_ticket_email_task.delay("SWAP", old_booking.get("user_email", "passenger@railyn.co"), {
         "user_name": old_booking.get("user_name", "Valued Passenger"),
         "old_pnr": old_booking.get("pnr"),
         "old_train_number": old_booking.get("train_number"),

@@ -21,6 +21,9 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
 ## Features
 
 - **Atomic Seat Allocation**: Implements a dedicated multi-process shared-memory arena for sub-millisecond, deadlock-free seat inventory reservations and waitlist sequencing.
+- **Upstash Redis Caching**: Employs an intelligent distributed caching tier that accelerates search routes (`/trn_search`) to sub-millisecond latencies while dynamically injecting real-time seat inventories.
+- **Crash-Resilient Write-Ahead Logging (WAL)**: Enforces zero-data-loss tatkal bookings. Employs transaction-safe pre-logging and startup recovery logic to automatically self-heal and sync shared memory and MongoDB counts on reboot in the event of an unpredicted server crash.
+- **Distributed Celery Task Queue**: Offloads PDF ticket dispatches, dynamic QR code creation, and external SMTP dispatches to a persistent, highly resilient background worker engine backed by secure Upstash Redis SSL connections.
 - **Dynamic Pricing Engine**: Multi-tiered pricing calculations utilizing travel distance, class multipliers (General, Sleeper, 3AC, 2AC, 1AC), and age concessions.
 - **Cryptographic Razorpay Checkout**: Fully integrated secure checkout verifying order signatures, payment capture status, and calculated totals in Python to prevent fraud.
 - **Real-Time Telemetry & Alerts**: Instant server-to-client event pushing powered by EMQX MQTT Brokers, enabling live notifications and immediate action prompts for passengers.
@@ -31,6 +34,8 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
 ## Technologies Used
 
 - **FastAPI**: Modern, high-performance, asynchronous web framework for Python APIs.
+- **Upstash Redis**: Secure, high-performance key-value caching and Celery message broker database accessed over TLS/SSL (`rediss://`).
+- **Celery**: Persistent distributed asynchronous task framework for processing high-latency notification pipelines.
 - **React & TypeScript**: Interactive, type-safe, component-driven frontend architecture.
 - **Vite & Tailwind CSS v4**: Ultra-fast build toolchain and a highly stylized, utility-first modern visual design.
 - **MongoDB**: NoSQL document store with programmatically configured indexes on startup for optimized schedule joins, train lookups, and PNR queries.
@@ -68,10 +73,15 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
     RAZORPAY_KEY_ID=your_razorpay_key_id
     RAZORPAY_KEY_SECRET=your_razorpay_key_secret
     APPS_SCRIPT_URL=your_google_apps_script_deployment_url
+    REDIS_URL=rediss://default:your_upstash_token@your_upstash_endpoint.upstash.io:6379
     ```
-5. **Run the application**:
+5. **Run the distributed application suite**:
     ```bash
+    # Terminal 1: Launch the FastAPI API Application
     uvicorn app:app --reload
+
+    # Terminal 2: Launch the Celery Distributed Task Worker Process
+    celery -A mailer.celery_app worker --loglevel=info
     ```
 
 ### Frontend Setup
@@ -106,6 +116,12 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
 
 ### Shared Memory Buffer
 - **Sub-Millisecond Allocation**: Bypasses slow disk-bound database locks by executing thread-safe, atomic seat reservations inside a high-speed shared memory buffer, then syncing updates asynchronously.
+
+### Write-Ahead Logging (WAL) & Crash Recovery
+- **Zero-Data-Loss Tatkal Concurrency**: Guarantees booking integrity by enforcing transaction pre-logging. Pre-writes `PENDING` states to `railyn.wal` under multiprocessing synchronization before mutating indices. Startup recovery checks the log file and reconciles/rolls back invalid reserves if a server terminates unexpectedly.
+
+### Celery Background Worker Engine
+- **Decoupled Job Queue**: Eliminates network latency during email delivery and heavy PDF generation. Dispatches work asynchronously to Celery background threads running over Upstash SSL TCP brokers, featuring standard task routing and retry loops.
 
 ### Autonomous Routing Engine
 - **Self-Healing Logistics**: Continuously tracks delays and cancellations via the MQTT engine. If a disruption occurs, the backend locates optimal alternatives, verifies seat availability, and streams dynamic swap prompts to users.
