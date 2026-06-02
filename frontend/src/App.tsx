@@ -1,11 +1,30 @@
-import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 
 // Lazy load pages for better performance and smaller bundle sizes
 const Home = lazy(() => import("./pages/Home"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+
+// Scroll to top restoration on route change
+function ScrollToTop() {
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    // If navigating to Home page with a tab query parameter, let Home handle scroll
+    const params = new URLSearchParams(search);
+    if (pathname === "/" && params.has("tab")) {
+      return;
+    }
+    window.scrollTo(0, 0);
+  }, [pathname, search]);
+
+  return null;
+}
 
 // Loading fallback component
 const PageLoader = () => (
@@ -17,6 +36,7 @@ const PageLoader = () => (
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <div className="app">
         <Analytics />
         <Navbar />
@@ -24,8 +44,11 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
           </Routes>
         </Suspense>
+        <Footer />
       </div>
     </BrowserRouter>
   );

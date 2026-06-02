@@ -238,6 +238,12 @@ class SavedPassengerRequest(BaseModel):
     age: int
     gender: str
 
+class ContactMessageRequest(BaseModel):
+    name: str
+    email: str
+    subject: Optional[str] = "Support Request"
+    message: str
+
 class PaymentOrderRequest(BaseModel):
     amount: int # Amount in INR
     currency: str = "INR"
@@ -258,6 +264,62 @@ async def root(request: Request):
 @limiter.limit("20/minute")
 def health_check(request: Request):
     return {"status": "ok"}
+
+@app.post("/contact")
+@limiter.limit("3/minute")
+async def contact_support(request: Request, msg: ContactMessageRequest, background_tasks: BackgroundTasks):
+    db = request.app.state.db
+    
+    # 1. Log message to MongoDB database for auditing & administrative lead management (Enterprise Standard)
+    message_doc = {
+        "name": msg.name,
+        "email": msg.email,
+        "subject": msg.subject,
+        "message": msg.message,
+        "status": "UNREAD",
+        "created_at": datetime.now()
+    }
+    await db.contact_messages.insert_one(message_doc)
+    
+    # 2. Dispatch email to operational support mailbox in the background if RESEND_API_KEY is configured
+    resend_api_key = os.getenv("RESEND_API_KEY")
+    if resend_api_key:
+        try:
+            html_body = f"""
+            <h3>New Contact Message received on Railyn</h3>
+            <hr/>
+            <p><b>From Name:</b> {msg.name}</p>
+            <p><b>From Email:</b> {msg.email}</p>
+            <p><b>Subject:</b> {msg.subject}</p>
+            <p><b>Message:</b></p>
+            <p style="white-space: pre-wrap; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; font-family: monospace;">{msg.message}</p>
+            """
+            
+            def send_resend_email():
+                try:
+                    payload = {
+                        "from": "Railyn Support <onboarding@resend.dev>",
+                        "to": "haldar.saumili843@gmail.com",
+                        "subject": f"Railyn Support: {msg.subject}",
+                        "html": html_body
+                    }
+                    headers = {
+                        "Authorization": f"Bearer {resend_api_key}",
+                        "Content-Type": "application/json"
+                    }
+                    res = requests.post("https://api.resend.com/emails", json=payload, headers=headers, timeout=10)
+                    if res.status_code == 200:
+                        logger.info("Resend support email dispatched successfully!")
+                    else:
+                        logger.error(f"Resend email dispatch failed with code {res.status_code}: {res.text}")
+                except Exception as e:
+                    logger.error(f"Exception during Resend email dispatch: {e}")
+            
+            background_tasks.add_task(send_resend_email)
+        except Exception as e:
+            logger.error(f"Error scheduling support email: {e}")
+            
+    return {"status": "success", "message": "Your message has been registered. Operational support has been notified."}
 
 @app.get("/stn_search")
 @limiter.limit("30/minute")

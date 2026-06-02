@@ -165,9 +165,19 @@ const Home = () => {
     const f = params.get('from');
     const t = params.get('to');
     const d = params.get('date');
+    const tab = params.get('tab');
     if (f) setFromStn(f);
     if (t) setToStn(t);
     if (d) setDate(d);
+    if (tab && ["book", "pnr", "charts"].includes(tab)) {
+      setActiveTab(tab);
+      setTimeout(() => {
+        const element = document.getElementById("widget-container");
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+    }
   }, [user, getToken]);
 
   const fetchSavedPassengers = async (skipReset = false) => {
@@ -399,7 +409,7 @@ const Home = () => {
           </div>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="widget-container">
+        <motion.div id="widget-container" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="widget-container">
           <div className="search-widget">
             <div className="widget-tabs">
               <button className={`tab ${activeTab === 'book' ? 'active' : ''}`} onClick={() => setActiveTab('book')}>
