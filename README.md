@@ -74,6 +74,7 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
     RAZORPAY_KEY_SECRET=your_razorpay_key_secret
     APPS_SCRIPT_URL=your_google_apps_script_deployment_url
     REDIS_URL=rediss://default:your_upstash_token@your_upstash_endpoint.upstash.io:6379
+    RESEND_API_KEY=your_resend_api_key
     ```
 5. **Run the distributed application suite**:
     ```bash
