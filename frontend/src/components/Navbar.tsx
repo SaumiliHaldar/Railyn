@@ -37,14 +37,14 @@ const Navbar = () => {
         <div className="nav-auth" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div className="desktop-auth" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
             <Link to="/about" className={isActive("/about") ? "active" : ""}>
-              About
+              About Us
             </Link>
             <Link to="/contact" className={isActive("/contact") ? "active" : ""}>
-              Contact
+              Contact Us
             </Link>
             <SignedIn>
               <Link to="/dashboard" className={isActive("/dashboard") ? "active" : ""}>
-                Bookings
+                My Bookings
               </Link>
             </SignedIn>
             <SignedOut>
@@ -94,7 +94,7 @@ const Navbar = () => {
 
         <div className="drawer-links">
           <Link to="/about" className={isActive("/about") ? "active" : ""}>
-            About Railyn
+            About Us
           </Link>
           <Link to="/contact" className={isActive("/contact") ? "active" : ""}>
             Contact Us

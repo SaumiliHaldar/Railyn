@@ -93,14 +93,14 @@ body {
 .hero-container {
   position: relative;
   width: 100%;
-  height: 100vh;
-  min-height: 680px;
+  height: auto;
+  min-height: auto;
   background: var(--bg-page);
-  padding: 85px 5% 20px;
+  padding: 120px 5% 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   box-sizing: border-box;
 }
 
@@ -4751,4 +4751,665 @@ select:focus,
 .premium-toast-close:hover {
   color: #ffffff;
   transform: scale(1.1);
+}
+
+/* ==========================================================================
+   ── Live Announcements Bulletin Banner (Marquee) ──
+   ========================================================================== */
+.live-bulletin-banner {
+  width: 92%;
+  max-width: 1100px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  margin-top: -120px;
+  margin-bottom: 80px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.bulletin-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef2f2;
+  color: #ef4444;
+  font-weight: 800;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  flex-shrink: 0;
+}
+
+.bulletin-marquee {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 40px;
+  padding-right: 40px;
+  animation: marquee-scroll 30s linear infinite;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+.marquee-content {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+@keyframes marquee-scroll {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+@media (max-width: 768px) {
+  .live-bulletin-banner {
+    width: calc(100% - 32px);
+    margin-top: -110px;
+    margin-bottom: 90px;
+    padding: 6px 12px;
+  }
+  .bulletin-icon span {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   ── Official Passenger Services Grid Section ──
+   ========================================================================== */
+.home-services-section,
+.popular-routes-section,
+.booking-timeline-section {
+  padding: 80px 6%;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.popular-routes-section {
+  background: #ffffff;
+}
+
+.home-section-header {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 56px;
+}
+
+.section-badge {
+  display: inline-block;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  margin-bottom: 14px;
+  border: 1px solid rgba(30, 111, 43, 0.15);
+}
+
+.home-section-header h2 {
+  font-family: var(--heading);
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -1px;
+  margin-bottom: 12px;
+  line-height: 1.15;
+}
+
+.home-section-header p {
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.services-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.service-card-btn {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.01);
+  position: relative;
+  overflow: hidden;
+}
+
+.service-card-btn:hover {
+  transform: translateY(-4px);
+  border-color: rgba(30, 111, 43, 0.2);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.05);
+}
+
+.service-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  transition: transform 0.3s ease;
+}
+
+.service-card-btn:hover .service-icon-box {
+  transform: scale(1.1);
+}
+
+.service-icon-box.primary-themed { background: #f0f7f1; color: var(--primary); }
+.service-icon-box.accent-themed { background: #fffdf0; color: #d97706; }
+.service-icon-box.secondary-themed { background: #f0fdf4; color: var(--secondary); }
+.service-icon-box.blue-themed { background: #eff6ff; color: #2563eb; }
+.service-icon-box.purple-themed { background: #faf5ff; color: #7c3aed; }
+.service-icon-box.amber-themed { background: #fffbeb; color: #d97706; }
+
+.service-card-btn h3 {
+  font-family: var(--heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+
+.service-card-btn p {
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.card-action-indicator {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  transition: gap 0.2s ease;
+}
+
+.service-card-btn:hover .card-action-indicator {
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .home-services-section {
+    padding: 60px 16px;
+  }
+  .home-section-header h2 {
+    font-size: 28px;
+  }
+  .services-action-grid {
+    grid-template-columns: 1fr;
+  }
+  .service-card-btn {
+    padding: 24px;
+  }
+}
+
+/* ==========================================================================
+   ── Popular Routes Grid Section ──
+   ========================================================================== */
+.routes-carousel-container {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.routes-shortcut-grid {
+  display: flex;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  gap: 24px;
+  padding: 16px 0;
+  width: 100%;
+  scrollbar-width: none;
+}
+
+.routes-shortcut-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.routes-shortcut-grid .route-shortcut-card {
+  flex: 0 0 320px;
+}
+
+.carousel-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid rgba(15, 23, 42, 0.15);
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.carousel-nav-btn:hover {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 8px 25px rgba(30, 111, 43, 0.25);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.carousel-nav-btn:active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+.carousel-nav-btn.prev {
+  left: -28px;
+}
+
+.carousel-nav-btn.next {
+  right: -28px;
+}
+
+@media (max-width: 768px) {
+  .routes-carousel-container {
+    padding: 0 16px;
+  }
+  .carousel-nav-btn {
+    display: none;
+  }
+}
+
+.route-shortcut-card {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  border-radius: 24px;
+  overflow: hidden;
+  height: 440px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+.route-shortcut-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.75) 100%);
+  z-index: 1;
+  transition: background 0.3s ease;
+}
+
+.route-shortcut-card:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.route-shortcut-card:hover::before {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.85) 100%);
+}
+
+.route-header,
+.route-stations-row,
+.route-footer {
+  position: relative;
+  z-index: 2;
+}
+
+.route-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: auto;
+}
+
+.train-tag {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.train-tag.tag-primary { background: rgba(240, 247, 241, 0.9); color: var(--primary); }
+.train-tag.tag-secondary { background: rgba(239, 246, 255, 0.9); color: #1e40af; }
+.train-tag.tag-duronto { background: rgba(255, 247, 237, 0.9); color: #c2410c; }
+.train-tag.tag-sf { background: rgba(250, 245, 255, 0.9); color: #6b21a8; }
+
+.route-fare-tag {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fbbf24;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.route-stations-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.route-stn h3 {
+  font-family: var(--heading);
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.route-stn span {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.route-arrow-icon {
+  color: #ffffff;
+  opacity: 0.8;
+}
+
+.route-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.route-book-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(4px);
+}
+
+.route-shortcut-card:hover .route-book-btn {
+  color: #ffffff;
+  background: var(--primary);
+  border-color: var(--primary);
+  gap: 6px;
+}
+
+@media (max-width: 640px) {
+  .popular-routes-section {
+    padding: 60px 16px;
+  }
+}
+
+/* ==========================================================================
+   ── Booking Journey Timeline Section ──
+   ========================================================================== */
+.timeline-stepper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.step-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+}
+
+.step-number-ring {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  border: 2px solid var(--primary);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--heading);
+  font-weight: 900;
+  font-size: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 0 6px rgba(30, 111, 43, 0.05);
+  position: relative;
+  z-index: 2;
+}
+
+.step-block h4 {
+  font-family: var(--heading);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.step-block p {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  max-width: 220px;
+}
+
+@media (min-width: 1024px) {
+  .step-block:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 22px;
+    left: calc(50% + 22px);
+    width: calc(100% - 44px);
+    height: 1px;
+    background: #e2e8f0;
+    z-index: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .booking-timeline-section {
+    padding: 60px 16px;
+  }
+  .timeline-stepper {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}
+
+/* ==========================================================================
+   ── Diagnostics / Live Telemetry Modal ──
+   ========================================================================== */
+.telemetry-dialog-card {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 580px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.telemetry-modal-header {
+  padding: 24px 28px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.telemetry-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.telemetry-close-btn:hover {
+  background: #f1f5f9;
+  color: var(--text-main);
+}
+
+.telemetry-modal-body {
+  padding: 28px;
+}
+
+.pulse-icon {
+  animation: pulse-telemetry 2s infinite ease-in-out;
+}
+
+@keyframes pulse-telemetry {
+  0% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.9; }
+}
+
+.live-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: inline-block;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+  animation: blink-status 1.5s infinite;
+}
+
+@keyframes blink-status {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.telemetry-metric-item {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-family: var(--heading);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.metric-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.telemetry-info-box {
+  background: #f0f9ff;
+  border: 1px solid #e0f2fe;
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.telemetry-info-box .info-icon {
+  color: #0284c7;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.telemetry-info-box p {
+  font-size: 11.5px;
+  color: #0369a1;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.telemetry-modal-footer {
+  padding: 20px 28px 28px;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
 }

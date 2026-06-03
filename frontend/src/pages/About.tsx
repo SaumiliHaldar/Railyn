@@ -34,7 +34,7 @@ const About = () => {
           transition={{ type: "spring", stiffness: 100, damping: 15 }}
           className="about-hero-badge"
         >
-          About Railyn
+          About Us
         </motion.div>
         <motion.h1
           initial={{ y: -15, opacity: 0 }}
