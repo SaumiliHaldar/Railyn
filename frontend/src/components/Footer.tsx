@@ -58,13 +58,13 @@ const Footer = () => {
           <h3 className="footer-col-title">Features</h3>
           <ul className="footer-links-list">
             <li>
-              <Link to="/?tab=book">Ticket Booking</Link>
+              <Link to="/">Ticket Booking</Link>
             </li>
             <li>
-              <Link to="/?tab=pnr">PNR Status Inquiry</Link>
+              <Link to="/pnr">PNR Status Inquiry</Link>
             </li>
             <li>
-              <Link to="/?tab=charts">Vacancy Charts</Link>
+              <Link to="/charts">Vacancy Charts</Link>
             </li>
             <li>
               <span style={{ color: "#cbd5e1", fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "6px" }}>

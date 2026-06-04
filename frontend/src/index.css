@@ -5412,4 +5412,43 @@ select:focus,
   padding: 20px 28px 28px;
   border-top: 1px solid #f1f5f9;
   background: #f8fafc;
+}
+
+/* ── Trains Page Responsive Layout ── */
+.trains-layout-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 32px;
+}
+
+@media (max-width: 1024px) {
+  .trains-layout-grid {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+}
+
+/* ── Seat Class Inventory — Horizontal Scroll Row ── */
+.seat-inventory {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;       /* Firefox */
+  /* Bleed past the 24px card padding so the last card isn't clipped */
+  margin-left: -24px;
+  margin-right: -24px;
+  padding-left: 24px;
+  padding-right: 24px;
+  padding-bottom: 4px;
+}
+
+.seat-inventory::-webkit-scrollbar {
+  display: none;               /* Chrome / Safari */
+}
+
+.seat-inventory .seat-box {
+  flex: 0 0 auto;
+  min-width: 140px;
 }

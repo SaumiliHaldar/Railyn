@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import mqtt from "mqtt";
 import Ticket from "../components/Ticket";
 import { formatDate } from "../utils/dateUtils";
@@ -44,6 +45,7 @@ const cardVariants = {
 const Dashboard = () => {
   const { getToken }  = useAuth();
   const { user }      = useUser();
+  const navigate      = useNavigate();
 
   const [bookings,       setBookings]       = useState<any[]>([]);
   const [loading,        setLoading]        = useState(true);
@@ -65,7 +67,7 @@ const Dashboard = () => {
       to: b.to_stn,
       date: new Date().toISOString().split('T')[0] // Default to today for fresh booking
     });
-    window.location.href = `/?${params.toString()}`;
+    navigate(`/trains?${params.toString()}`);
   };
 
   const filteredBookings = useMemo(() => {

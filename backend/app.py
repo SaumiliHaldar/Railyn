@@ -1087,6 +1087,12 @@ async def get_train_chart(request: Request, train_id: str, date: Optional[str] =
     train_number = train.get("number", "")
     train_name = train.get("name", "")
 
+    # Sync with live shared memory counts
+    for cls in list(inventory.keys()):
+        count = shared_mem.get_seats(train_number, cls)
+        if count is not None:
+            inventory[cls] = count
+
     # Fetch all active bookings for this train on this SPECIFIC DATE
     bookings_cursor = db.bookings.find({
         "train_number": train_number, 
@@ -1110,7 +1116,13 @@ async def get_train_chart(request: Request, train_id: str, date: Optional[str] =
         
         for i in range(1, num_coaches + 1):
             coach_id = f"{prefix}{i}"
-            max_seats = 72 if cls in ["Sleeper", "3AC", "2AC"] else 46
+            
+            if cls in ["Sleeper", "3AC", "General"]:
+                max_seats = 72
+            elif cls == "2AC":
+                max_seats = 48
+            else: # 1AC
+                max_seats = 24
             
             # Simulated inventory per coach (for seats not explicitly booked)
             coach_inv = min(max_seats, count // num_coaches)
@@ -1128,15 +1140,20 @@ async def get_train_chart(request: Request, train_id: str, date: Optional[str] =
                     # Only simulate occupancy if total available is less than max
                     is_occupied = (seed % 100) > (coach_inv / max_seats * 100 + 5)
 
-                # IRCTC Layout logic for 8-seat compartments (SL/3A/2A)
+                # IRCTC Layout logic for 8-seat or 6-seat compartments
                 berth_type = "LB"
-                if cls in ["Sleeper", "3AC", "2AC"]:
+                if cls in ["Sleeper", "3AC", "General"]:
                     if s % 8 in [1, 4]: berth_type = "LB"
                     elif s % 8 in [2, 5]: berth_type = "MB"
                     elif s % 8 in [3, 6]: berth_type = "UB"
                     elif s % 8 == 7: berth_type = "SL"
                     elif s % 8 == 0: berth_type = "SU"
-                else: # 1AC or other
+                elif cls == "2AC":
+                    if s % 6 in [1, 3]: berth_type = "LB"
+                    elif s % 6 in [2, 4]: berth_type = "UB"
+                    elif s % 6 == 5: berth_type = "SL"
+                    elif s % 6 == 0: berth_type = "SU"
+                else: # 1AC
                     berth_type = "LB" if s % 2 == 1 else "UB"
 
                 seats.append({

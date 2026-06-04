@@ -9,6 +9,9 @@ const Home = lazy(() => import("./pages/Home"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
+const Trains = lazy(() => import("./pages/Trains"));
+const PnrStatus = lazy(() => import("./pages/PnrStatus"));
+const VacancyCharts = lazy(() => import("./pages/VacancyCharts"));
 
 // Scroll to top restoration on route change
 function ScrollToTop() {
@@ -43,6 +46,9 @@ function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/trains" element={<Trains />} />
+            <Route path="/pnr" element={<PnrStatus />} />
+            <Route path="/charts" element={<VacancyCharts />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
