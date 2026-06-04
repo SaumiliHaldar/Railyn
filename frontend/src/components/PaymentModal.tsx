@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useToast } from './ui/toast-1';
+import { ShieldCheck, Calendar, Users, Train, ArrowRight, Lock, ArrowLeft } from 'lucide-react';
 
 interface PaymentModalProps {
   user: any;
@@ -61,7 +62,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         description: `Booking for ${selectedTrain.train_name}`,
         order_id: orderData.id,
         handler: async (response: any) => {
-          // Step 3: Unified Secure Transaction Flow: Cryptographic signatures are sent to book_tkt for verification
+          // Step 3: Unified Secure Transaction Flow
           try {
             await finalizeBooking(
               response.razorpay_order_id,
@@ -96,7 +97,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     signature?: string
   ) => {
     try {
-      // Fetch a fresh token right before request to prevent token expiration during payment flow
       const freshToken = await getToken();
       const res = await fetch(`${apiUrl}/book_tkt`, {
         method: 'POST',
@@ -139,61 +139,186 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
+  const formattedDate = new Date(travelDate).toLocaleDateString('en-US', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+
+  const passengerNames = passengers.map(p => p.name).join(', ');
+
   if (isProcessing) {
     return (
-      <div className="processing-container" style={{ padding: '60px 24px', textAlign: 'center' }}>
-        <div className="loader-ring"></div>
-        <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px', marginTop: '20px' }}>Securely Processing</h3>
-        <p style={{ fontSize: '14px', color: '#666' }}>Please do not refresh or close this window...</p>
+      <div style={{ padding: '40px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          borderRadius: '50%',
+          border: '4px solid var(--primary-light)',
+          borderTopColor: 'var(--primary)',
+          animation: 'spin 1s linear infinite'
+        }} />
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+        <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px', marginTop: '20px', fontFamily: 'var(--heading)' }}>Securely Processing</h3>
+        <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Contacting Razorpay Gateway. Please do not close or refresh...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '32px 24px' }}>
-      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#e0f2fe', padding: '6px 16px', borderRadius: '30px', marginBottom: '16px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Secure Razorpay Checkout</span>
+    <div style={{ padding: '24px', fontFamily: 'var(--sans)', color: 'var(--text-main)' }}>
+      {/* Header */}
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' }}>
+        <button 
+          onClick={onCancel}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: 'var(--text-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '6px',
+            borderRadius: '50%',
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={e => { e.currentTarget.style.background = 'var(--primary-light)'; e.currentTarget.style.color = 'var(--primary)'; }}
+          onMouseOut={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+          title="Go Back"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div style={{ 
+          display: 'inline-flex', 
+          alignItems: 'center', 
+          gap: '6px', 
+          background: 'var(--primary-light)', 
+          padding: '6px 14px', 
+          borderRadius: '100px', 
+          marginBottom: '10px',
+          border: '1px solid rgba(30, 111, 43, 0.1)'
+        }}>
+          <ShieldCheck size={14} color="var(--primary)" />
+          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Secure Checkout
+          </span>
         </div>
-        <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>Confirm & Pay</h2>
-        <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Secure your journey with just one click</p>
+        <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--heading)', margin: 0 }}>
+          Confirm & Pay
+        </h2>
       </div>
 
-      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '24px', padding: '24px', marginBottom: '28px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '14px', color: '#64748b' }}>Train</span>
-            <span style={{ fontSize: '14px', fontWeight: 700 }}>{selectedTrain?.train_name}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '14px', color: '#64748b' }}>Journey</span>
-            <span style={{ fontSize: '14px', fontWeight: 700 }}>{fromStn.split(' - ')[0]} → {toStn.split(' - ')[0]}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '14px', color: '#64748b' }}>Fare Breakdown</span>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '24px', fontWeight: 900, color: '#1E6F2B' }}>₹{totalFare}</div>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>Inclusive of GST & Platform fees</div>
+      {/* Ticket Details Box */}
+      <div style={{ 
+        background: '#f8fafc', 
+        border: '1px dashed #cbd5e1', 
+        borderRadius: '12px', 
+        padding: '16px', 
+        marginBottom: '20px',
+        position: 'relative'
+      }}>
+        {/* Ticket Header (Train info) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Train size={16} color="var(--primary)" />
+            <div>
+              <span style={{ fontSize: '14px', fontWeight: 700 }}>{selectedTrain?.train_name}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                {selectedTrain?.train_number}
+              </span>
             </div>
           </div>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary)', background: 'var(--primary-light)', padding: '2px 8px', borderRadius: '4px' }}>
+            {selectedClass}
+          </span>
+        </div>
+
+        {/* Route Details */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <div>
+            <div style={{ fontSize: '15px', fontWeight: 800 }}>{fromStn.split(' - ')[0]}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{selectedTrain?.departure}</div>
+          </div>
+          <ArrowRight size={16} color="var(--text-muted)" />
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '15px', fontWeight: 800 }}>{toStn.split(' - ')[0]}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{selectedTrain?.arrival}</div>
+          </div>
+        </div>
+
+        {/* Date and Passengers */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '10px 0', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Calendar size={14} color="var(--text-muted)" />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>{formattedDate}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Users size={14} color="var(--text-muted)" />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>
+              {passengers.length} Passenger{passengers.length > 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+
+        {/* Passenger Names List */}
+        <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={passengerNames}>
+          <strong>Passengers:</strong> {passengerNames}
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '12px' }}>
-        <button type="button" className="btn btn-outline" style={{ flex: 1, height: '56px', borderRadius: '16px' }} onClick={onCancel}>Cancel</button>
+      {/* Pricing Summary */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', background: 'var(--primary-light)', padding: '14px 18px', borderRadius: '10px', border: '1px solid rgba(30, 111, 43, 0.08)' }}>
+        <div>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', display: 'block' }}>Total Payable Amount</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Incl. of all processing charges</span>
+        </div>
+        <div style={{ fontSize: '26px', fontWeight: 900, color: 'var(--primary)', fontFamily: 'var(--heading)' }}>
+          ₹{totalFare}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
         <button 
           type="button"
-          className="btn btn-primary" 
-          style={{ flex: 1.5, height: '56px', borderRadius: '16px', fontWeight: 800, background: 'linear-gradient(135deg, #1E6F2B 0%, #2d9a3e 100%)' }} 
+          style={{ 
+            width: '100%',
+            maxWidth: '320px',
+            height: '46px', 
+            borderRadius: '8px', 
+            fontWeight: 800, 
+            fontSize: '14px',
+            background: 'var(--primary)', 
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px var(--primary-glow)',
+            transition: 'all 0.2s'
+          }} 
+          onMouseOver={e => { e.currentTarget.style.background = 'var(--secondary)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+          onMouseOut={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.transform = 'none'; }}
           onClick={handlePayment}
         >
           Pay with Razorpay
         </button>
       </div>
-      
-      <div style={{ textAlign: 'center', marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-        <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>100% Encrypted & Secure</span>
+
+      {/* Trust Badge */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: 0.8 }}>
+        <Lock size={12} color="var(--text-muted)" />
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
+          100% Secure & Encrypted Transactions
+        </span>
       </div>
     </div>
   );

@@ -13,6 +13,11 @@ from celery import Celery
 import ssl
 
 load_dotenv()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
 logger = logging.getLogger("railyn.mailer")
 
 REDIS_URL = os.getenv("REDIS_URL")
@@ -27,6 +32,9 @@ celery_app.conf.update(
     redis_backend_use_ssl={"ssl_cert_reqs": ssl.CERT_NONE} if "rediss://" in (REDIS_URL or "") else False,
     broker_use_ssl={"ssl_cert_reqs": ssl.CERT_NONE} if "rediss://" in (REDIS_URL or "") else False,
 )
+
+# Initialize persistent HTTP session for connection pooling & TLS cache reuse to speed up Google Apps Script requests
+http_session = requests.Session()
 
 APPS_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL")
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
@@ -50,14 +58,16 @@ def get_logo_src() -> str:
 
 
 def send_to_apps_script(email: str, subject: str, html_body: str, pdf_html: str = None, pnr: str = "Ticket"):
-    """Synchronously issues the POST request to the deployed Google Apps Script URL."""
+    """Synchronously issues the POST request to the deployed Google Apps Script URL using connection pooling."""
     if not APPS_SCRIPT_URL:
-        logger.warning("APPS_SCRIPT_URL is not configured in .env. Skipping email dispatch.")
+        logger.warning(f"APPS_SCRIPT_URL is not configured in .env. Skipping email dispatch to {email}.")
         return False
         
     start_time = time.time()
     body_sz = len(html_body) / 1024.0
     pdf_sz = len(pdf_html) / 1024.0 if pdf_html else 0.0
+    
+    logger.info(f"[EMAIL TRIGGERED] Dispatching email (PNR: {pnr}) to {email}...")
         
     try:
         payload = {
@@ -67,27 +77,27 @@ def send_to_apps_script(email: str, subject: str, html_body: str, pdf_html: str 
             "pdfHtml": pdf_html,
             "pnr": pnr
         }
-        res = requests.post(APPS_SCRIPT_URL, json=payload, timeout=15)
+        res = http_session.post(APPS_SCRIPT_URL, json=payload, timeout=15)
         latency = time.time() - start_time
         if res.status_code == 200:
             result = res.json()
             if result.get("status") == "success":
                 logger.info(
-                    f"[MAIL DISPATCH] PNR: {pnr} | To: {email} | Body: {body_sz:.1f}KB | PDF: {pdf_sz:.1f}KB | Time Taken: {latency:.2f}s | Status: SUCCESS"
+                    f"[EMAIL SENT] PNR: {pnr} | To: {email} | Body: {body_sz:.1f}KB | PDF: {pdf_sz:.1f}KB | Time Taken: {latency:.2f}s | Status: SUCCESS"
                 )
                 return True
             else:
                 logger.error(
-                    f"[MAIL DISPATCH] PNR: {pnr} | To: {email} | Time Taken: {latency:.2f}s | Status: FAILED (Apps Script: {result.get('message')})"
+                    f"[EMAIL FAILED] PNR: {pnr} | To: {email} | Time Taken: {latency:.2f}s | Status: FAILED (Apps Script: {result.get('message')})"
                 )
         else:
             logger.error(
-                f"[MAIL DISPATCH] PNR: {pnr} | To: {email} | Time Taken: {latency:.2f}s | Status: HTTP_{res.status_code}"
+                f"[EMAIL FAILED] PNR: {pnr} | To: {email} | Time Taken: {latency:.2f}s | Status: HTTP_{res.status_code}"
             )
     except Exception as e:
         latency = time.time() - start_time
         logger.exception(
-            f"[MAIL DISPATCH] PNR: {pnr} | To: {email} | Time Taken: {latency:.2f}s | Status: EXCEPTION ({e})"
+            f"[EMAIL EXCEPTION] PNR: {pnr} | To: {email} | Time Taken: {latency:.2f}s | Status: EXCEPTION ({e})"
         )
     return False
 

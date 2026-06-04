@@ -118,7 +118,8 @@ const Trains = () => {
   const [savingPassengerIndex, setSavingPassengerIndex] = useState<number | null>(null);
   const [editingSavedPassenger, setEditingSavedPassenger] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", age: "", gender: "Male" });
-  const [showPayment, setShowPayment] = useState(false);
+  const [showPassengerModal, setShowPassengerModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState<BookingData | null>(null);
 
   // Custom Date Picker State
@@ -391,12 +392,13 @@ const Trains = () => {
       showToast("Please enter valid name and age for all passengers", "error");
       return;
     }
-    setShowPayment(true);
+    setShowPassengerModal(false);
+    setShowPaymentModal(true);
   };
 
   const handleBookingSuccess = (data: any) => {
     setBookingSuccess(data.booking);
-    setShowPayment(false);
+    setShowPaymentModal(false);
     showToast("Booking Confirmed! Redirecting to dashboard...", "success");
 
     if (data.booking?.status === "CNF" && selectedTrain && selectedClass) {
@@ -767,7 +769,7 @@ const Trains = () => {
                         <div style={{ fontSize: "14px", color: ctTextDark }}>Selected Class: <strong style={{ color: ctGreen }}>{selectedClass}</strong></div>
                         <div style={{ fontSize: "12px", color: ctTextMuted }}>Fare per passenger: ₹{train.fares?.[selectedClass]}</div>
                       </div>
-                      <button onClick={() => setShowPayment(true)} className="w-full sm:w-auto justify-center" style={{ background: ctGreen, color: "white", border: "none", padding: "10px 24px", borderRadius: "4px", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 2px 6px var(--primary-glow)" }}>
+                      <button onClick={() => setShowPassengerModal(true)} className="w-full sm:w-auto justify-center" style={{ background: ctGreen, color: "white", border: "none", padding: "10px 24px", borderRadius: "4px", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 2px 6px var(--primary-glow)" }}>
                         Book Now <ArrowRight size={16} />
                       </button>
                     </motion.div>
@@ -781,8 +783,8 @@ const Trains = () => {
 
       {/* Booking Passenger Modal - ConfirmTkt Style */}
       <AnimatePresence>
-        {showPayment && !bookingSuccess && selectedTrain && selectedClass && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={() => setShowPayment(false)}>
+        {showPassengerModal && !bookingSuccess && selectedTrain && selectedClass && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={() => setShowPassengerModal(false)}>
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: "8px", width: "100%", maxWidth: "650px", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
               
               <div style={{ background: ctGreen, padding: "16px 24px", borderTopLeftRadius: "8px", borderTopRightRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", color: "white" }}>
@@ -790,7 +792,7 @@ const Trains = () => {
                   <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>Review Passenger Details</h2>
                   <p style={{ fontSize: "13px", margin: "4px 0 0 0", opacity: 0.9 }}>{selectedTrain.train_name} | {fromCode} to {toCode} | {selectedClass}</p>
                 </div>
-                <button style={{ background: "none", border: "none", color: "white", cursor: "pointer", padding: "4px" }} onClick={() => setShowPayment(false)}><X size={24} /></button>
+                <button style={{ background: "none", border: "none", color: "white", cursor: "pointer", padding: "4px" }} onClick={() => setShowPassengerModal(false)}><X size={24} /></button>
               </div>
 
               <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
@@ -911,44 +913,71 @@ const Trains = () => {
         )}
 
         {/* Payment Processing UI (Simulated or Real Razorpay) */}
-        {showPayment && user && !bookingSuccess && selectedTrain && selectedClass && (
-          <PaymentModal 
-            user={user}
-            selectedTrain={selectedTrain}
-            selectedClass={selectedClass}
-            passengers={passengers}
-            fromStn={`${fromCode} - STATION`}
-            toStn={`${toCode} - STATION`}
-            travelDate={date}
-            getToken={getToken}
-            onSuccess={handleBookingSuccess}
-            onCancel={() => setShowPayment(false)}
-            apiUrl={API_URL}
-            razorpayKeyId={import.meta.env.VITE_RAZORPAY_KEY_ID}
-          />
+        {showPaymentModal && user && !bookingSuccess && selectedTrain && selectedClass && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={() => setShowPaymentModal(false)}>
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: "16px", width: "100%", maxWidth: "500px", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 10px 40px rgba(0,0,0,0.2)", overflowY: "auto" }}>
+              <PaymentModal 
+                user={user}
+                selectedTrain={selectedTrain}
+                selectedClass={selectedClass}
+                passengers={passengers}
+                fromStn={`${fromCode} - STATION`}
+                toStn={`${toCode} - STATION`}
+                travelDate={date}
+                getToken={getToken}
+                onSuccess={handleBookingSuccess}
+                onCancel={() => {
+                  setShowPaymentModal(false);
+                  setShowPassengerModal(true);
+                }}
+                apiUrl={API_URL}
+                razorpayKeyId={import.meta.env.VITE_RAZORPAY_KEY_ID}
+              />
+            </motion.div>
+          </div>
         )}
 
         {/* E-Ticket Display */}
         {bookingSuccess && selectedTrain && selectedClass && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ background: "white", borderRadius: "12px", overflow: "hidden", maxWidth: "550px", width: "100%" }}>
-              <div style={{ padding: "24px" }}>
-                <ETicket 
-                  pnr={bookingSuccess.pnr}
-                  trainName={selectedTrain.train_name}
-                  trainNumber={selectedTrain.train_number}
-                  departureTime={selectedTrain.departure}
-                  arrivalTime={selectedTrain.arrival}
-                  fromStn={fromCode}
-                  toStn={toCode}
-                  date={date}
-                  classType={selectedClass}
-                  passengers={bookingSuccess.passengers}
-                  status={bookingSuccess.status}
-                />
-              </div>
-              <div style={{ padding: "16px 24px", background: "#f5f5f5", display: "flex", justifyContent: "flex-end" }}>
-                <button onClick={() => { setSelectedTrain(null); setSelectedClass(null); setBookingSuccess(null); }} style={{ background: ctGreen, color: "white", border: "none", padding: "10px 24px", borderRadius: "4px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ background: "transparent", maxWidth: "520px", width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <ETicket 
+                pnr={bookingSuccess.pnr}
+                trainName={selectedTrain.train_name}
+                trainNumber={selectedTrain.train_number}
+                departureTime={selectedTrain.departure}
+                arrivalTime={selectedTrain.arrival}
+                fromStn={fromCode}
+                toStn={toCode}
+                date={date}
+                classType={selectedClass}
+                passengers={bookingSuccess.passengers}
+                status={bookingSuccess.status}
+              />
+              <div style={{ display: "flex", justifyContent: "center", marginTop: "20px", width: "100%" }}>
+                <button 
+                  onClick={() => { 
+                    setSelectedTrain(null); 
+                    setSelectedClass(null); 
+                    setBookingSuccess(null); 
+                  }} 
+                  style={{ 
+                    width: "100%",
+                    background: "var(--primary)", 
+                    color: "white", 
+                    border: "none", 
+                    padding: "14px 0", 
+                    borderRadius: "12px", 
+                    fontSize: "16px", 
+                    fontWeight: 700, 
+                    cursor: "pointer",
+                    boxShadow: "0 4px 15px rgba(30, 111, 43, 0.25)",
+                    transition: "all 0.2s",
+                    fontFamily: "var(--heading)"
+                  }}
+                  onMouseOver={e => { e.currentTarget.style.background = "var(--secondary)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                  onMouseOut={e => { e.currentTarget.style.background = "var(--primary)"; e.currentTarget.style.transform = "none"; }}
+                >
                   Done
                 </button>
               </div>
