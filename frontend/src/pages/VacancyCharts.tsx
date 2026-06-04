@@ -157,40 +157,44 @@ const VacancyCharts = () => {
 
         {/* Search Panel */}
         <div style={{ background: "white", padding: "24px", borderRadius: "20px", border: "1px solid #e2e8f0", boxShadow: "0 10px 30px rgba(0,0,0,0.03)", marginBottom: "32px" }}>
-          <form onSubmit={handleSearchSubmit} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr)) 160px", gap: "16px", alignItems: "flex-end" }} className="chart-search-form">
-            <div className="input-group" style={{ margin: 0 }}>
-              <label htmlFor="chart-train-input" style={{ fontSize: "12px", fontWeight: 800 }}>Train Number / Name</label>
-              <input 
-                id="chart-train-input"
-                type="text" 
-                placeholder="e.g. 12222 or Duronto" 
-                value={trainInput}
-                onChange={(e) => setTrainInput(e.target.value)}
-                style={{ height: "46px", marginTop: "8px", paddingLeft: "18px" }}
-              />
-            </div>
-            
-            <div className="input-group" style={{ margin: 0 }}>
-              <label htmlFor="chart-date-input" style={{ fontSize: "12px", fontWeight: 800 }}>Journey Date</label>
-              <div style={{ position: "relative", marginTop: "8px" }}>
-                <Calendar size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
-                <input 
-                  id="chart-date-input"
-                  type="date" 
-                  value={dateInput}
-                  min={localToday()}
-                  max={localMaxDate()}
-                  onChange={(e) => setDateInput(e.target.value)}
-                  style={{ height: "46px", paddingLeft: "36px" }}
+          <form onSubmit={handleSearchSubmit} className="chart-search-form">
+            <div className="chart-form-row">
+              <div className="input-group" style={{ margin: 0 }}>
+                <label htmlFor="chart-train-input">Train Number / Name</label>
+                <input
+                  id="chart-train-input"
+                  type="text"
+                  placeholder="e.g. 12222 or Duronto"
+                  value={trainInput}
+                  onChange={(e) => setTrainInput(e.target.value)}
+                  style={{ height: "52px", fontSize: "16px" }}
                 />
               </div>
-            </div>
 
-            <button type="submit" className="btn btn-primary" style={{ height: "46px", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }} disabled={loading}>
-              <Search size={16} /> {loading ? "Searching..." : "Get Chart"}
-            </button>
+              <div className="input-group" style={{ margin: 0 }}>
+                <label htmlFor="chart-date-input">Journey Date</label>
+                <div style={{ position: "relative" }}>
+                  <Calendar size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+                  <input
+                    id="chart-date-input"
+                    type="date"
+                    value={dateInput}
+                    min={localToday()}
+                    max={localMaxDate()}
+                    onChange={(e) => setDateInput(e.target.value)}
+                    style={{ height: "52px", paddingLeft: "36px", fontSize: "15px" }}
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="btn btn-primary search-action-btn" disabled={loading}>
+                <Search size={16} style={{ marginRight: "8px" }} />
+                {loading ? "Searching..." : "Get Vacancy Chart"}
+              </button>
+            </div>
           </form>
         </div>
+
 
         {/* Loading skeleton */}
         {loading && (
