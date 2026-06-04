@@ -418,6 +418,11 @@ async def train_search(request: Request, from_stn: str, to_stn: str):
         for cls in shared_mem.CLASSES:
             count = shared_mem.get_seats(t_num, cls)
             if count is not None:
+                if count <= 0:
+                    # Deterministic random baseline for waitlist to look realistic (0 to 120, weighted towards lower end)
+                    rng = random.Random(f"{t_num}-{cls}")
+                    baseline = int((rng.random() ** 1.5) * 120)
+                    count = -baseline
                 real_inv[cls] = count
         if real_inv:
             t["seat_inventory"] = real_inv
@@ -434,17 +439,15 @@ async def train_search(request: Request, from_stn: str, to_stn: str):
             # Smart Waitlist Probability Heuristic
             count = t["seat_inventory"].get(cls, 0)
             if count > 0:
-                probabilities[cls] = "High"
+                probabilities[cls] = "99%"
             else:
-                wl_pos = abs(count)
-                # Simple heuristic: lower WL pos and more time to journey = higher prob
-                # Here we simulate with random/fixed logic for the demo
-                if wl_pos < 15:
-                    probabilities[cls] = "High"
-                elif wl_pos < 40:
-                    probabilities[cls] = "Medium"
-                else:
-                    probabilities[cls] = "Low"
+                wl_pos = abs(count) + 1
+                # Calculate a realistic probability percentage based on waitlist length
+                rng2 = random.Random(f"{t_num}-{cls}-prob")
+                base_prob = 95 - (wl_pos * 1.2)
+                variation = rng2.randint(-5, 5)
+                prob_percent = int(max(5, min(95, base_prob + variation)))
+                probabilities[cls] = f"{prob_percent}%"
                     
         t["fares"] = fares
         t["wl_probabilities"] = probabilities
@@ -555,7 +558,9 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
             "class_type": booking.class_type,
             "status": "WL"
         })
-        wl_position = wl_count + 1
+        rng = random.Random(f"{booking.train_number}-{booking.class_type}")
+        baseline = int((rng.random() ** 1.5) * 120)
+        wl_position = wl_count + baseline + 1
         for p in booking.passengers:
             assigned_passengers.append({
                 "name": p.name,

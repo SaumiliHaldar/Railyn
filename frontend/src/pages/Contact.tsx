@@ -106,7 +106,7 @@ const Contact = () => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: "spring", stiffness: 100 }}
         >
-          Contact Support
+          Contact Us
         </motion.h1>
         <motion.p
           initial={{ y: 20, opacity: 0 }}
