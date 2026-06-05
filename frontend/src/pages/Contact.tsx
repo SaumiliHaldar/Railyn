@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, CheckCircle, ChevronDown } from "lucide-react";
 import { FaEnvelope, FaMapMarkerAlt, FaPhoneAlt } from "react-icons/fa";
+import railynHero from "../assets/railyn_hero.png";
 
 interface FAQ {
   question: string;
@@ -99,22 +100,54 @@ const Contact = () => {
 
   return (
     <div className="contact-page">
-      {/* Hero Header */}
-      <section className="contact-hero">
-        <motion.h1
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 100 }}
-        >
-          Contact Us
-        </motion.h1>
-        <motion.p
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-        >
-          Get in touch with our team for operational support or reservation assistance.
-        </motion.p>
+      {/* Hero Header — image behind, matching About page pattern */}
+      <section className="contact-hero" style={{ position: "relative", overflow: "hidden" }}>
+        {/* Background image */}
+        <motion.img
+          src={railynHero}
+          alt=""
+          aria-hidden="true"
+          initial={{ scale: 1.06, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "center",
+            zIndex: 0,
+            pointerEvents: "none",
+            userSelect: "none"
+          }}
+        />
+        {/* Gradient overlay so text stays readable */}
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(to bottom, rgba(255,255,255,0.45) 0%, rgba(240,247,241,0.62) 100%)",
+          zIndex: 1,
+          pointerEvents: "none"
+        }} />
+        {/* Content sits above the image */}
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <motion.h1
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 100 }}
+          >
+            Contact Us
+          </motion.h1>
+          <motion.p
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            style={{ color: "#1e293b" }}
+          >
+            Get in touch with our team for operational support or reservation assistance.
+          </motion.p>
+        </div>
       </section>
 
       {/* Main Grid Content */}

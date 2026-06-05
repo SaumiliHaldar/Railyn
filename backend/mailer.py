@@ -30,44 +30,40 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 # Initialize Jinja2 Environment
 jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(TEMPLATES_DIR))
 
-def get_logo_src() -> str:
-    """Returns a base64-embedded data URI of logo1.png from the local assets folder.
-    This makes the logo fully self-contained in the PDF — no network dependency.
-    Falls back to LOGO_URL env var, then a public GitHub raw URL as a last resort."""
-    
-    # 1. Try to embed the logo locally as a base64 data URI (works offline, always reliable in PDFs)
+def get_logo_url() -> str:
+    """Returns a public HTTPS URL for the logo — safe for email clients like Gmail
+    which block data: URIs. Uses LOGO_URL env var, then GitHub raw URL fallback."""
+    logo_env = os.getenv("LOGO_URL")
+    if logo_env:
+        logger.info(f"Logo URL from LOGO_URL env: {logo_env}")
+        return logo_env
+    fallback = "https://raw.githubusercontent.com/SaumiliHaldar/Railyn/main/frontend/src/assets/logo1.png"
+    logger.info(f"Using GitHub raw URL for email logo: {fallback}")
+    return fallback
+
+
+def get_logo_base64() -> str:
+    """Returns a resized base64 data URI of logo1.png — safe for PDFs rendered
+    by Google Apps Script (which CAN render data: URIs, unlike Gmail).
+    Falls back to get_logo_url() if local file is missing."""
     local_logo = os.path.join(os.path.dirname(__file__), "logo1.png")
     if os.path.exists(local_logo):
         try:
             with open(local_logo, "rb") as f:
                 img = Image.open(f).convert("RGBA")
-            
-            # Resize to 48px height (actual display size in the template) to keep base64 tiny
+            # Resize to 48px height (actual display size) to keep payload tiny
             target_h = 48
             ratio = target_h / img.height
             target_w = int(img.width * ratio)
             img = img.resize((target_w, target_h), Image.LANCZOS)
-            
             buf = io.BytesIO()
             img.save(buf, format="PNG", optimize=True)
             b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-            logger.info(f"Logo loaded and resized to {target_w}x{target_h}px as base64 ({len(b64)/1024:.1f} KB).")
+            logger.info(f"PDF logo resized to {target_w}x{target_h}px as base64 ({len(b64)/1024:.1f} KB).")
             return f"data:image/png;base64,{b64}"
         except Exception as e:
-            logger.warning(f"Failed to read/resize local logo file: {e}")
-
-    
-    # 2. Fall back to LOGO_URL env var (e.g. a CDN URL set in production)
-    logo_env = os.getenv("LOGO_URL")
-    if logo_env:
-        logger.info(f"Logo loaded from LOGO_URL env: {logo_env}")
-        return logo_env
-    
-    # 3. Last resort: public GitHub raw URL
-    fallback_url = "https://raw.githubusercontent.com/SaumiliHaldar/Railyn/main/frontend/src/assets/logo1.png"
-    logger.warning(f"Local logo not found and LOGO_URL not set. Using GitHub raw fallback: {fallback_url}")
-    return fallback_url
-
+            logger.warning(f"Failed to read/resize local logo for PDF: {e}")
+    return get_logo_url()
 
 
 def send_to_apps_script(email: str, subject: str, html_body: str, pdf_html: str = None, pnr: str = "Ticket"):
@@ -210,11 +206,12 @@ async def trigger_email(email_type: str, email: str, data: dict):
     # Format travel date for presentation
     formatted_date = format_to_ddmmyyyy(data.get("travel_date") or "")
     
-    # 1. Fetch Dynamic Base64 logo.png
-    logo_src = get_logo_src()
+    # 1. Logo — URL for email body (Gmail blocks data: URIs), base64 for PDF only
+    logo_url = get_logo_url()
+    logo_base64 = get_logo_base64()
     
     template_data = {
-        "logo_src": logo_src,
+        "logo_src": logo_url,  # used in base.html (email body)
         "pnr": pnr,
         "train_number": data.get("train_number", ""),
         "train_name": data.get("train_name", ""),
@@ -278,7 +275,7 @@ async def trigger_email(email_type: str, email: str, data: dict):
             template_data["qr_url"] = f"https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={urllib.parse.quote(qr_data_string)}"
         
         pdf_template = jinja_env.get_template("pdf_ticket.html")
-        pdf_html = pdf_template.render(**template_data)
+        pdf_html = pdf_template.render(**{**template_data, "logo_src": logo_base64})
         
     elif email_type == "CANCEL":
         subject = f"Ticket Cancelled - PNR: {pnr}"
@@ -316,7 +313,7 @@ async def trigger_email(email_type: str, email: str, data: dict):
     
     # 4. Inject View inside Outer base_layout
     base_template = jinja_env.get_template("base.html")
-    final_email_html = base_template.render(CONTENT=content_html, logo_src=logo_src)
+    final_email_html = base_template.render(CONTENT=content_html, logo_src=logo_url)
 
     # 5. Execute Apps Script dispatch directly (blocking the worker thread/process)
     logger.info(f"Dispatched Apps Script HTTP request for PNR: {pnr}")

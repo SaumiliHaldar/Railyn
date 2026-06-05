@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import railynHero from "../assets/railyn_hero.png";
 
 const About = () => {
   const containerVariants = {
@@ -27,29 +28,53 @@ const About = () => {
   return (
     <div className="about-page">
       {/* Hero Header */}
-      <section className="about-hero">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
+      <section className="about-hero" style={{ position: "relative", overflow: "hidden" }}>
+        {/* Background image */}
+        <motion.img
+          src={railynHero}
+          alt=""
+          aria-hidden="true"
+          initial={{ scale: 1.06, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 100, damping: 15 }}
-          className="about-hero-badge"
-        >
-          About Us
-        </motion.div>
-        <motion.h1
-          initial={{ y: -15, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.05 }}
-        >
-          Redefining Train Reservations
-        </motion.h1>
-        <motion.p
-          initial={{ y: 15, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-        >
-          A high-performance booking platform designed for speed, security, and live trip tracking.
-        </motion.p>
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "center",
+            zIndex: 0,
+            pointerEvents: "none",
+            userSelect: "none"
+          }}
+        />
+        {/* Gradient overlay so text stays readable */}
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(to bottom, rgba(255,255,255,0.45) 0%, rgba(240,247,241,0.62) 100%)",
+          zIndex: 1,
+          pointerEvents: "none"
+        }} />
+        {/* Content sits above the image */}
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <motion.h1
+            initial={{ y: -15, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.05 }}
+          >
+            Redefining Train Reservations
+          </motion.h1>
+          <motion.p
+            initial={{ y: 15, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            style={{ color: "#1e293b" }}
+          >
+            A high-performance booking platform designed for speed, security, and live trip tracking.
+          </motion.p>
+        </div>
       </section>
 
       {/* Pillars Section */}
