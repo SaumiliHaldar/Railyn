@@ -3,7 +3,7 @@ import json
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 import shared_mem
-from mailer import send_ticket_email_task
+from mailer import trigger_email
 
 load_dotenv()
 
@@ -58,14 +58,11 @@ async def handle_waitlist_upgrade(db, train_number, class_type):
             "message": f"Your waitlisted ticket for Train {train_number} ({class_type}) has automatically been upgraded to CONFIRMED!"
         })
         
-        # Trigger Non-blocking Waitlist Upgrade Email
-        import asyncio
         passengers_data = [
             {"name": p["name"], "coach": p.get("coach", "B1"), "seat": p.get("seat", 10)}
             for p in wl_booking.get("passengers", [{"name": wl_booking.get("user_name", "Passenger")}])
         ]
-            
-        send_ticket_email_task.delay("WL_UPGRADE", wl_booking.get("user_email", "passenger@railyn.co"), {
+        await trigger_email("WL_UPGRADE", wl_booking.get("user_email", "passenger@railyn.co"), {
             "user_name": wl_booking.get("user_name", "Valued Passenger"),
             "pnr": wl_booking.get("pnr"),
             "train_number": train_number,

@@ -22,8 +22,8 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
 
 - **Atomic Seat Allocation**: Implements a dedicated multi-process shared-memory arena for sub-millisecond, deadlock-free seat inventory reservations and waitlist sequencing.
 - **Upstash Redis Caching**: Employs an intelligent distributed caching tier that accelerates search routes (`/trn_search`) to sub-millisecond latencies while dynamically injecting real-time seat inventories.
-- **Write-Ahead Logging (WAL)**: Enforces transaction-safe atomicity for tatkal bookings. All pending/committed transaction ledger entries are routed programmatically through standard logging streams rather than physical disk I/O, ensuring zero-clutter execution and container-native portability.
-- **Distributed Celery Task Queue**: Offloads PDF ticket dispatches, dynamic QR code creation, and external SMTP dispatches to a persistent, highly resilient background worker engine backed by secure Upstash Redis SSL connections.
+- **Write-Ahead Logging (WAL)**: Enforces transaction-safe atomicity for bookings. All pending/committed transaction ledger entries are routed programmatically through standard logging streams rather than physical disk I/O, ensuring zero-clutter execution and container-native portability.
+- **Background Email Pipeline**: Handles booking confirmations, cancellations, and waitlist upgrades asynchronously using FastAPI's BackgroundTasks, including QR code generation and PDF ticket delivery via Google Apps Script.
 - **Dynamic Pricing Engine**: Multi-tiered pricing calculations utilizing travel distance, class multipliers (General, Sleeper, 3AC, 2AC, 1AC), and age concessions.
 - **Cryptographic Razorpay Checkout**: Fully integrated secure checkout verifying order signatures, payment capture status, and calculated totals in Python to prevent fraud.
 - **Real-Time Telemetry & Alerts**: Instant server-to-client event pushing powered by EMQX MQTT Brokers, enabling live notifications and immediate action prompts for passengers.
@@ -34,8 +34,7 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
 ## Technologies Used
 
 - **FastAPI**: Modern, high-performance, asynchronous web framework for Python APIs.
-- **Upstash Redis**: Secure, high-performance key-value caching and Celery message broker database accessed over TLS/SSL.
-- **Celery**: Persistent distributed asynchronous task framework for processing high-latency notification pipelines.
+- **Redis**: Secure, high-performance key-value caching database accessed over TLS/SSL for accelerated train search results.
 - **React & TypeScript**: Interactive, type-safe, component-driven frontend architecture.
 - **Vite & Tailwind CSS v4**: Ultra-fast build toolchain and a highly stylized, utility-first modern visual design.
 - **MongoDB**: NoSQL document store with programmatically configured indexes on startup for optimized schedule joins, train lookups, and PNR queries.
@@ -76,14 +75,10 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
     REDIS_URL=rediss://default:your_upstash_token@your_upstash_endpoint.upstash.io:6379
     RESEND_API_KEY=your_resend_api_key
     ```
-5. **Run the distributed application suite**:
+5. **Run the application**:
     ```bash
-    # Terminal 1: Launch the FastAPI API Application
+    # Single command — no separate worker process needed
     uvicorn app:app --reload
-
-    # Terminal 2: Launch the Celery Distributed Task Worker Process
-    # On Windows, -P solo or -P eventlet is required for Celery to function properly:
-    celery -A mailer.celery_app worker --loglevel=info -P solo
     ```
 
 ### Frontend Setup
@@ -122,8 +117,8 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
 ### Write-Ahead Logging (WAL)
 - **High-Throughput Atomicity**: Guarantees seat reservation sequence integrity using programmatically isolated memory blocks synchronized under multiprocessing locks. To preserve fast container startups and eliminate permission bottlenecks, it logs states cleanly via console-native logging streams rather than slower disk-bound write-ahead files.
 
-### Celery Background Worker Engine
-- **Decoupled Job Queue**: Eliminates network latency during email delivery and heavy PDF generation. Dispatches work asynchronously to Celery background threads running over Upstash SSL TCP brokers, featuring standard task routing and retry loops.
+### Background Email Pipeline
+- **Zero-Process Email Dispatch**: Email notifications (booking confirmations, cancellations, waitlist upgrades, train swaps) are dispatched using FastAPI's native `BackgroundTasks`. Emails fire immediately after the API response is returned — no separate worker process, no message broker queue, no operational overhead.
 
 ### Autonomous Routing Engine
 - **Self-Healing Logistics**: Continuously tracks delays and cancellations via the MQTT engine. If a disruption occurs, the backend locates optimal alternatives, verifies seat availability, and streams dynamic swap prompts to users.

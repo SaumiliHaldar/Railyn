@@ -9,8 +9,7 @@ from dotenv import load_dotenv
 from PIL import Image, ImageOps
 import io
 import jinja2
-from celery import Celery
-import ssl
+
 
 load_dotenv()
 logging.basicConfig(
@@ -20,41 +19,55 @@ logging.basicConfig(
 )
 logger = logging.getLogger("railyn.mailer")
 
-REDIS_URL = os.getenv("REDIS_URL")
-celery_app = Celery("mailer", broker=REDIS_URL, backend=REDIS_URL)
 
-celery_app.conf.update(
-    task_serializer="json",
-    accept_content=["json"],
-    result_serializer="json",
-    timezone="Asia/Kolkata",
-    enable_utc=True,
-    redis_backend_use_ssl={"ssl_cert_reqs": ssl.CERT_NONE} if "rediss://" in (REDIS_URL or "") else False,
-    broker_use_ssl={"ssl_cert_reqs": ssl.CERT_NONE} if "rediss://" in (REDIS_URL or "") else False,
-)
 
 # Initialize persistent HTTP session for connection pooling & TLS cache reuse to speed up Google Apps Script requests
 http_session = requests.Session()
 
 APPS_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL")
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
-ASSETS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "src", "assets"))
 
 # Initialize Jinja2 Environment
 jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(TEMPLATES_DIR))
 
 def get_logo_src() -> str:
-    """Gets a web-safe, stable public HTTPS URL for the Railyn logo to ensure rendering in all email clients (like Gmail/Outlook).
-    Uses LOGO_URL from environment variables if set, falling back to the raw GitHub asset."""
+    """Returns a base64-embedded data URI of logo1.png from the local assets folder.
+    This makes the logo fully self-contained in the PDF — no network dependency.
+    Falls back to LOGO_URL env var, then a public GitHub raw URL as a last resort."""
+    
+    # 1. Try to embed the logo locally as a base64 data URI (works offline, always reliable in PDFs)
+    local_logo = os.path.join(os.path.dirname(__file__), "logo1.png")
+    if os.path.exists(local_logo):
+        try:
+            with open(local_logo, "rb") as f:
+                img = Image.open(f).convert("RGBA")
+            
+            # Resize to 48px height (actual display size in the template) to keep base64 tiny
+            target_h = 48
+            ratio = target_h / img.height
+            target_w = int(img.width * ratio)
+            img = img.resize((target_w, target_h), Image.LANCZOS)
+            
+            buf = io.BytesIO()
+            img.save(buf, format="PNG", optimize=True)
+            b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+            logger.info(f"Logo loaded and resized to {target_w}x{target_h}px as base64 ({len(b64)/1024:.1f} KB).")
+            return f"data:image/png;base64,{b64}"
+        except Exception as e:
+            logger.warning(f"Failed to read/resize local logo file: {e}")
+
+    
+    # 2. Fall back to LOGO_URL env var (e.g. a CDN URL set in production)
     logo_env = os.getenv("LOGO_URL")
     if logo_env:
-        logger.info(f"Loading logo from LOGO_URL env: {logo_env}")
+        logger.info(f"Logo loaded from LOGO_URL env: {logo_env}")
         return logo_env
-        
-    # Default to the highly reliable, CDN-cached raw GitHub URL for your frontend assets
+    
+    # 3. Last resort: public GitHub raw URL
     fallback_url = "https://raw.githubusercontent.com/SaumiliHaldar/Railyn/main/frontend/src/assets/logo1.png"
-    logger.info(f"Using stable GitHub raw URL fallback: {fallback_url}")
+    logger.warning(f"Local logo not found and LOGO_URL not set. Using GitHub raw fallback: {fallback_url}")
     return fallback_url
+
 
 
 def send_to_apps_script(email: str, subject: str, html_body: str, pdf_html: str = None, pnr: str = "Ticket"):
@@ -309,15 +322,3 @@ async def trigger_email(email_type: str, email: str, data: dict):
     logger.info(f"Dispatched Apps Script HTTP request for PNR: {pnr}")
     send_to_apps_script(email, subject, final_email_html, pdf_html, pnr)
 
-
-@celery_app.task(bind=True, max_retries=5, default_retry_delay=10)
-def send_ticket_email_task(self, email_type, email, data):
-    """
-    Celery background task that executes trigger_email inside an asyncio runtime environment.
-    """
-    logger.info(f"Celery task started: Dispatching '{email_type}' email to {email}")
-    try:
-        asyncio.run(trigger_email(email_type, email, data))
-    except Exception as exc:
-        logger.error(f"Celery task failed with error: {exc}. Retrying...")
-        raise self.retry(exc=exc)

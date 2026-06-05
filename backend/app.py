@@ -25,7 +25,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import mqtt_engine, shared_mem, pricing
 import razorpay
-from mailer import send_ticket_email_task
+from mailer import trigger_email
 from bson.objectid import ObjectId
 import logging
 import redis.asyncio as aioredis
@@ -456,7 +456,7 @@ async def train_search(request: Request, from_stn: str, to_stn: str):
 
 @app.post("/book_tkt")
 @limiter.limit("10/minute")
-async def book_ticket(request: Request, booking: BookingRequest, user_token: dict = Depends(verify_token)):
+async def book_ticket(request: Request, booking: BookingRequest, background_tasks: BackgroundTasks, user_token: dict = Depends(verify_token)):
     db = request.app.state.db
     user_id = user_token.get("sub")
     
@@ -608,8 +608,8 @@ async def book_ticket(request: Request, booking: BookingRequest, user_token: dic
         except Exception as e:
             logger.error(f"Failed to write WAL commit log for {tx_id}: {e}")
     
-    # Trigger Non-blocking Booking Confirmation Email + PDF ERS Attachment using Celery
-    send_ticket_email_task.delay("BOOKING", booking.user_email or "passenger@railyn.co", {
+    # Trigger Non-blocking Booking Confirmation Email + PDF ERS Attachment via BackgroundTasks
+    background_tasks.add_task(trigger_email, "BOOKING", booking.user_email or "passenger@railyn.co", {
         "user_name": booking.user_name or "Valued Passenger",
         "pnr": pnr,
         "train_number": booking.train_number,
@@ -850,8 +850,8 @@ async def cancel_ticket(request: Request, cancel_req: CancelRequest, background_
     refund_amount = max(0, original_fare - cancellation_fee) if final_status == "CANCELLED" else (original_fare // len(current_passengers)) * num_cancelled_now - cancellation_fee
     refund_amount = max(0, refund_amount)
     
-    # Trigger Non-blocking Cancellation & Refund Notification using Celery
-    send_ticket_email_task.delay("CANCEL", booking.get("user_email", "passenger@railyn.co"), {
+    # Trigger Non-blocking Cancellation & Refund Notification via BackgroundTasks
+    background_tasks.add_task(trigger_email, "CANCEL", booking.get("user_email", "passenger@railyn.co"), {
         "user_name": booking.get("user_name", "Valued Passenger"),
         "pnr": booking.get("pnr"),
         "train_number": booking.get("train_number"),
@@ -881,7 +881,7 @@ async def simulate_delay(request: Request, delay_req: DelayRequest, background_t
 
 @app.post("/swap_tkt")
 @limiter.limit("5/minute")
-async def swap_ticket(request: Request, swap_req: SwapRequest, user_token: dict = Depends(verify_token)):
+async def swap_ticket(request: Request, swap_req: SwapRequest, background_tasks: BackgroundTasks, user_token: dict = Depends(verify_token)):
     db = request.app.state.db
     user_id = user_token.get("sub")
     
@@ -949,8 +949,8 @@ async def swap_ticket(request: Request, swap_req: SwapRequest, user_token: dict 
     
     res = await db.bookings.insert_one(new_booking)
     
-    # Trigger Non-blocking Swap Alert Notification using Celery
-    send_ticket_email_task.delay("SWAP", old_booking.get("user_email", "passenger@railyn.co"), {
+    # Trigger Non-blocking Swap Alert Notification via BackgroundTasks
+    background_tasks.add_task(trigger_email, "SWAP", old_booking.get("user_email", "passenger@railyn.co"), {
         "user_name": old_booking.get("user_name", "Valued Passenger"),
         "old_pnr": old_booking.get("pnr"),
         "old_train_number": old_booking.get("train_number"),
