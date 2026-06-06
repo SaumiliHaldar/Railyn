@@ -5,7 +5,7 @@ import {
   Info, ArrowRight,
   ChevronLeft, ChevronRight
 } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../components/ui/toast-1";
@@ -67,7 +67,9 @@ const Home = () => {
   const [swapRotation, setSwapRotation] = useState(0);
   const [chartDate, setChartDate] = useState(localToday());
   const [showTelemetryModal, setShowTelemetryModal] = useState(false);
-  const carouselRef = React.useRef<HTMLDivElement>(null);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasRegistered = useRef(false);
   const [routeInfoMap, setRouteInfoMap] = useState<Record<string, { type: string; minFare: number; duration: string }>>({});
 
   useEffect(() => {
@@ -103,8 +105,8 @@ const Home = () => {
                 return;
               }
             }
-          } catch (err) {
-            console.error(`Error fetching route data for ${route.from}->${route.to}:`, err);
+          } catch {
+            // Silently fall through to use fallback data
           }
           updatedMap[route.id] = {
             type: route.fallbackType,
@@ -131,22 +133,29 @@ const Home = () => {
   };
 
   useEffect(() => {
+    // Register user only once per session — guard with ref to prevent repeat
+    // Clerk token refresh triggers this effect repeatedly without the guard
     const registerUser = async () => {
-      if (user) {
-        const token = await getToken();
-        await fetch(`${API_URL}/register_user`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            email: user.primaryEmailAddress?.emailAddress,
-            first_name: user.firstName,
-            last_name: user.lastName,
-            image_url: user.imageUrl
-          })
-        });
+      if (user && !hasRegistered.current) {
+        hasRegistered.current = true;
+        try {
+          const token = await getToken();
+          await fetch(`${API_URL}/register_user`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              email: user.primaryEmailAddress?.emailAddress,
+              first_name: user.firstName,
+              last_name: user.lastName,
+              image_url: user.imageUrl
+            })
+          });
+        } catch {
+          // Non-critical — user sync failure should not break the page
+        }
       }
     };
     registerUser();
@@ -171,14 +180,23 @@ const Home = () => {
     }
   }, [user, getToken]);
 
-  const handleStationSearch = async (query: string, setSuggestions: React.Dispatch<React.SetStateAction<Station[]>>) => {
+  const handleStationSearch = (query: string, setSuggestions: React.Dispatch<React.SetStateAction<Station[]>>) => {
+    // Clear any pending debounce timer before setting a new one
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
     if (query.length < 2) {
       setSuggestions([]);
       return;
     }
-    const res = await fetch(`${API_URL}/stn_search?q=${query}`);
-    const data = await res.json();
-    setSuggestions(data.results || []);
+    // Only fire API call after 300ms of inactivity — prevents per-keystroke spam
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/stn_search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        setSuggestions(data.results || []);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 300);
   };
 
   const handleSearch = () => {
@@ -192,14 +210,18 @@ const Home = () => {
       return;
     }
     const fromCode = fromStn.split(' - ')[0];
+    const fromName = fromStn.split(' - ')[1] || fromCode;
     const toCode = toStn.split(' - ')[0];
-    navigate(`/trains?from=${fromCode}&to=${toCode}&date=${date}&class=${classType}`);
+    const toName = toStn.split(' - ')[1] || toCode;
+    navigate(`/trains?from=${fromCode}&to=${toCode}&fromName=${encodeURIComponent(fromName)}&toName=${encodeURIComponent(toName)}&date=${date}&class=${classType}`);
   };
 
   const handleQuickBook = (fromStnFull: string, toStnFull: string) => {
     const fromCode = fromStnFull.split(' - ')[0];
+    const fromName = fromStnFull.split(' - ')[1] || fromCode;
     const toCode = toStnFull.split(' - ')[0];
-    navigate(`/trains?from=${fromCode}&to=${toCode}&date=${localToday()}`);
+    const toName = toStnFull.split(' - ')[1] || toCode;
+    navigate(`/trains?from=${fromCode}&to=${toCode}&fromName=${encodeURIComponent(fromName)}&toName=${encodeURIComponent(toName)}&date=${localToday()}`);
   };
 
   const checkPnrStatus = () => {

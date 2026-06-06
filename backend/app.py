@@ -646,12 +646,12 @@ async def book_ticket(request: Request, booking: BookingRequest, background_task
 
 @app.post("/register_user")
 @limiter.limit("5/minute")
-async def register_user(request: Request, user: UserRequest, user_token: dict = Depends(verify_token)):
+async def register_user(request: Request, background_tasks: BackgroundTasks, user: UserRequest, user_token: dict = Depends(verify_token)):
     db = request.app.state.db
     user_id = user_token.get("sub")
     
     # Upsert user record into the 'users' collection
-    await db.users.update_one(
+    result = await db.users.update_one(
         {"user_id": user_id},
         {"$set": {
             "email": user.email,
@@ -661,6 +661,12 @@ async def register_user(request: Request, user: UserRequest, user_token: dict = 
         }},
         upsert=True
     )
+    
+    if result.upserted_id:
+        background_tasks.add_task(trigger_email, "WELCOME", user.email, {
+            "user_name": user.first_name or "Passenger"
+        })
+        
     return {"message": "User details synced to database"}
 
 @app.get("/saved_passengers")

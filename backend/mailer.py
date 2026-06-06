@@ -310,6 +310,11 @@ async def trigger_email(email_type: str, email: str, data: dict):
             
         template = jinja_env.get_template("wl_upgrade.html")
         content_html = template.render(**template_data)
+        
+    elif email_type == "WELCOME":
+        subject = f"Welcome to Railyn, {data.get('user_name', 'Passenger')}!"
+        template = jinja_env.get_template("welcome.html")
+        content_html = template.render(**template_data)
     
     # 4. Inject View inside Outer base_layout
     base_template = jinja_env.get_template("base.html")

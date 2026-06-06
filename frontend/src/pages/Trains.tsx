@@ -2,7 +2,7 @@ import { useAuth, useUser, useClerk } from "@clerk/clerk-react";
 import {
   Train, X, Star, Trash2, AlertCircle, Filter, Check, ArrowRight, Calendar, UserPlus, ShieldCheck, Edit2, ChevronLeft, ChevronRight
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import ETicket from "../components/Ticket";
@@ -94,6 +94,8 @@ const Trains = () => {
 
   const [fromCode, setFromCode] = useState("");
   const [toCode, setToCode] = useState("");
+  const [fromName, setFromName] = useState("");
+  const [toName, setToName] = useState("");
   const [date, setDate] = useState("");
   const [classType, setClassType] = useState("");
 
@@ -102,6 +104,10 @@ const Trains = () => {
 
   const [trains, setTrains] = useState<TrainData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [routeHasTrains, setRouteHasTrains] = useState<boolean | null>(null); // null = not yet determined
+
+  // Preserve passenger form data across login flow (Issue 5)
+  const pendingPassengersRef = useRef<typeof passengers | null>(null);
 
   // Filters state
   const [selectedTrainTypes, setSelectedTrainTypes] = useState<string[]>([]);
@@ -143,6 +149,8 @@ const Trains = () => {
     const params = new URLSearchParams(location.search);
     const fromParam = sanitizeInput(params.get("from") || "");
     const toParam = sanitizeInput(params.get("to") || "");
+    const fromNameParam = sanitizeInput(params.get("fromName") || fromParam);
+    const toNameParam = sanitizeInput(params.get("toName") || toParam);
     const dateParam = sanitizeInput(params.get("date") || "");
     const classParam = sanitizeInput(params.get("class") || "");
 
@@ -187,6 +195,8 @@ const Trains = () => {
     setIsValidSearch(true);
     setFromCode(fromParam.toUpperCase());
     setToCode(toParam.toUpperCase());
+    setFromName(fromNameParam);
+    setToName(toNameParam);
     setDate(dateParam);
     setClassType(classParam);
 
@@ -199,13 +209,16 @@ const Trains = () => {
       const res = await fetch(`${API_URL}/trn_search?from_stn=${fCode}&to_stn=${tCode}`);
       const data = await res.json();
       if (res.ok) {
-        setTrains(data.results || []);
+        const results = data.results || [];
+        setTrains(results);
+        setRouteHasTrains(results.length > 0);
       } else {
-        showToast(data.detail || "Error loading trains", "error");
+        setRouteHasTrains(false);
+        showToast(data.detail || "No trains found for this route.", "error");
       }
-    } catch (err) {
-      console.error(err);
-      showToast("Could not contact servers. Please try again.", "error");
+    } catch {
+      setRouteHasTrains(false);
+      showToast("Could not contact servers. Please check your connection and try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -225,14 +238,18 @@ const Trains = () => {
       const list = data.passengers || [];
       setSavedPassengers(list);
       if (!skipReset) {
-        if (list.length === 0) {
+        // Issue 5: If user just logged in and has pending custom passengers, restore them
+        // instead of wiping the form they already filled in
+        if (pendingPassengersRef.current && pendingPassengersRef.current.length > 0) {
+          setPassengers(pendingPassengersRef.current);
+          pendingPassengersRef.current = null;
+        } else if (list.length === 0) {
           setPassengers([{ name: "", age: "", gender: "Male", isCustom: true }]);
         } else {
           setPassengers([]);
         }
       }
-    } catch (err) {
-      console.error("Error fetching saved passengers:", err);
+    } catch {
       if (!skipReset) setPassengers([{ name: "", age: "", gender: "Male", isCustom: true }]);
     }
   };
@@ -370,8 +387,7 @@ const Trains = () => {
           showToast("Failed to save passenger", "error");
         }
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       showToast("Error updating saved passenger status", "error");
     } finally {
       setSavingPassengerIndex(null);
@@ -380,17 +396,34 @@ const Trains = () => {
 
   const handleBook = () => {
     if (!user) {
-      showToast("Please login to book tickets", "warning");
+      // Issue 5: Preserve filled passenger data before redirecting to login
+      const hasData = passengers.some(p => p.name.trim() || p.age);
+      if (hasData) pendingPassengersRef.current = passengers;
+      showToast("Please login to continue booking", "warning");
       openSignIn();
       return;
     }
     if (passengers.length === 0) {
-      showToast("Please add at least one passenger details", "error");
+      showToast("Please add at least one passenger", "error");
       return;
     }
-    if (passengers.some(p => !sanitizeInput(p.name) || !p.age || isNaN(parseInt(p.age)))) {
-      showToast("Please enter valid name and age for all passengers", "error");
-      return;
+    // Issue 6: Per-passenger specific validation messages
+    for (let i = 0; i < passengers.length; i++) {
+      const p = passengers[i];
+      const label = `Passenger ${i + 1}`;
+      if (!sanitizeInput(p.name)) {
+        showToast(`${label}: Please enter a valid name`, "error");
+        return;
+      }
+      const age = parseInt(p.age);
+      if (!p.age || isNaN(age)) {
+        showToast(`${label}: Please enter a valid age`, "error");
+        return;
+      }
+      if (age < 1 || age > 120) {
+        showToast(`${label}: Age must be between 1 and 120`, "error");
+        return;
+      }
     }
     setShowPassengerModal(false);
     setShowPaymentModal(true);
@@ -491,9 +524,10 @@ const Trains = () => {
       
 
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 items-start ct-layout" style={{ margin: "24px auto" }}>
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 items-start ct-layout" style={{ margin: "24px auto", display: "grid", gridTemplateColumns: trains.length > 0 ? "280px 1fr" : "1fr", gap: "24px" }}>
         
-        {/* Left Filters Sidebar */}
+        {/* Left Filters Sidebar — only shown when trains exist */}
+        {trains.length > 0 && (
         <aside className="static lg:sticky top-[100px] ct-filters" style={{ background: "white", padding: "20px", borderRadius: "8px", border: "1px solid #e0e0e0" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid #e0e0e0", paddingBottom: "12px" }}>
             <h3 style={{ fontSize: "16px", fontWeight: 700, color: ctTextDark, display: "flex", alignItems: "center", gap: "8px" }}>
@@ -534,13 +568,14 @@ const Trains = () => {
             </div>
           </div>
         </aside>
+        )}
 
         {/* Right Train List Results */}
         <section style={{ overflow: "hidden" }}>
           
           {/* Main Content Header Elements */}
           <div className="mb-6">
-            <h1 style={{ fontSize: "24px", fontWeight: 700, color: ctTextDark, margin: "0 0 4px 0" }}>{fromCode} to {toCode} Trains</h1>
+            <h1 style={{ fontSize: "24px", fontWeight: 700, color: ctTextDark, margin: "0 0 4px 0" }}>{fromName} to {toName} Trains</h1>
             <p style={{ fontSize: "14px", color: ctTextMuted, margin: 0 }}>{filteredTrains.length} Trains found between {fromCode} and {toCode}</p>
           </div>
 
@@ -578,14 +613,23 @@ const Trains = () => {
                 // More seats available the further out you book
                 val = Math.max(0, val - daysFromToday);
 
-                let availText = "Available";
-                let availColor = ctGreen;
-                if (val > 80) {
-                  availText = "Few Seats";
-                  availColor = ctRed;
-                } else if (val > 50) {
-                  availText = "Few Seats";
-                  availColor = "#d97706";
+                // If no trains found for this route, show '—' to avoid misleading the user
+                let availText = "—";
+                let availColor = "#9e9e9e";
+                if (routeHasTrains === true) {
+                  availText = "Available";
+                  availColor = ctGreen;
+                  if (val > 80) {
+                    availText = "Few Seats";
+                    availColor = ctRed;
+                  } else if (val > 50) {
+                    availText = "Few Seats";
+                    availColor = "#d97706";
+                  }
+                } else if (routeHasTrains === null) {
+                  // Still loading — show neutral dashes
+                  availText = "—";
+                  availColor = "#9e9e9e";
                 }
 
                 return (
@@ -594,7 +638,7 @@ const Trains = () => {
                     onClick={() => {
                       if (!isSelected && !isDisabled) {
                         const dStr = d.toISOString().split('T')[0];
-                        navigate(`/trains?from=${fromCode}&to=${toCode}&date=${dStr}${classType ? `&class=${classType}` : ''}`);
+                        navigate(`/trains?from=${fromCode}&to=${toCode}&fromName=${encodeURIComponent(fromName)}&toName=${encodeURIComponent(toName)}&date=${dStr}${classType ? `&class=${classType}` : ''}`);
                       }
                     }}
                     style={{ flex: "1 0 80px", textAlign: "center", padding: "10px 4px", borderBottom: isSelected ? `3px solid ${ctGreen}` : "3px solid transparent", cursor: isDisabled ? "not-allowed" : "pointer", color: isDisabled ? "#bdbdbd" : (isSelected ? ctGreen : ctTextMuted), transition: "all 0.2s", display: "flex", flexDirection: "column", justifyContent: "center" }}
@@ -606,11 +650,12 @@ const Trains = () => {
                     </div>
                     {!isDisabled ? (
                       <div style={{ fontSize: "11px", color: availColor, fontWeight: 600 }}>
-                        <span style={{ fontSize: "14px", marginRight: "2px", verticalAlign: "middle" }}>•</span>{availText}
+                        {routeHasTrains === true && <span style={{ fontSize: "14px", marginRight: "2px", verticalAlign: "middle" }}>•</span>}{availText}
                       </div>
                     ) : (
                       <div style={{ fontSize: "11px", color: "#bdbdbd", fontWeight: 600 }}>
                         Unavailable
+
                       </div>
                     )}
                   </div>
@@ -628,7 +673,8 @@ const Trains = () => {
             </div>
           </div>
 
-          {/* Quick Filters */}
+          {/* Quick Filters — only shown when trains exist */}
+          {trains.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: "24px", background: "white", borderRadius: "8px", border: "1px solid #e0e0e0", padding: "16px", marginBottom: "24px", overflowX: "auto", scrollbarWidth: "none" }}>
             <span style={{ fontSize: "14px", fontWeight: 700, color: ctTextDark, whiteSpace: "nowrap" }}>Quick Filters</span>
             
@@ -648,8 +694,10 @@ const Trains = () => {
               <span style={{ fontSize: "14px", fontWeight: 500, color: ctTextMuted }}>AC Only</span>
             </label>
           </div>
+          )}
 
-          {/* Free Cancellation Banner */}
+          {/* Free Cancellation Banner — only shown when trains exist */}
+          {trains.length > 0 && (
           <div onClick={() => setIsFreeCancellation(!isFreeCancellation)} style={{ background: "linear-gradient(90deg, var(--primary) 0%, #10b981 100%)", borderRadius: "8px", padding: "16px 24px", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", boxShadow: "0 4px 12px var(--primary-glow)", cursor: "pointer", transition: "transform 0.1s", transform: isFreeCancellation ? "scale(0.99)" : "scale(1)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
               <div style={{ width: "22px", height: "22px", border: "2px solid rgba(255,255,255,0.8)", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", background: isFreeCancellation ? "white" : "transparent" }}>
@@ -664,6 +712,7 @@ const Trains = () => {
               <ShieldCheck size={28} />
             </div>
           </div>
+          )}
           {loading ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               {[1, 2, 3].map(i => (
@@ -813,7 +862,19 @@ const Trains = () => {
                             <div key={sp.name} style={{ padding: "12px", border: `1px solid ${ctGreen}`, borderRadius: "4px", background: "white", display: "flex", flexDirection: "column", gap: "8px" }} onClick={e => e.stopPropagation()}>
                               <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} style={{ padding: "6px", border: "1px solid #e0e0e0", borderRadius: "4px", fontSize: "13px" }} placeholder="Name" />
                               <div style={{ display: "flex", gap: "8px" }}>
-                                <input type="number" value={editForm.age} onChange={e => setEditForm({...editForm, age: e.target.value})} style={{ padding: "6px", border: "1px solid #e0e0e0", borderRadius: "4px", fontSize: "13px", width: "60px" }} placeholder="Age" />
+                                <input
+                                  type="number"
+                                  value={editForm.age}
+                                  min={1}
+                                  max={120}
+                                  onChange={e => {
+                                    const v = parseInt(e.target.value);
+                                    if (e.target.value === '') { setEditForm({...editForm, age: ''}); return; }
+                                    if (!isNaN(v)) setEditForm({...editForm, age: String(Math.min(120, Math.max(1, v)))});
+                                  }}
+                                  style={{ padding: "6px", border: "1px solid #e0e0e0", borderRadius: "4px", fontSize: "13px", width: "60px" }}
+                                  placeholder="Age"
+                                />
                                 <select value={editForm.gender} onChange={e => setEditForm({...editForm, gender: e.target.value})} style={{ padding: "6px", border: "1px solid #e0e0e0", borderRadius: "4px", fontSize: "13px", flex: 1 }}>
                                   <option>Male</option><option>Female</option><option>Other</option>
                                 </select>
@@ -864,7 +925,20 @@ const Trains = () => {
                           </div>
                           <div>
                             <label style={{ fontSize: "12px", fontWeight: 600, color: ctTextMuted, marginBottom: "6px", display: "block" }}>Age</label>
-                            <input type="number" value={p.age} onChange={e => { const newP = [...passengers]; newP[i].age = e.target.value; setPassengers(newP); }} style={{ width: "100%", padding: "10px 12px", border: "1px solid #bdbdbd", borderRadius: "4px", fontSize: "14px" }} placeholder="Yrs" />
+                            <input
+                              type="number"
+                              value={p.age}
+                              min={1}
+                              max={120}
+                              onChange={e => {
+                                const newP = [...passengers];
+                                const v = parseInt(e.target.value);
+                                if (e.target.value === '') { newP[i].age = ''; setPassengers(newP); return; }
+                                if (!isNaN(v)) { newP[i].age = String(Math.min(120, Math.max(1, v))); setPassengers(newP); }
+                              }}
+                              style={{ width: "100%", padding: "10px 12px", border: "1px solid #bdbdbd", borderRadius: "4px", fontSize: "14px" }}
+                              placeholder="Yrs"
+                            />
                           </div>
                           <div>
                             <label style={{ fontSize: "12px", fontWeight: 600, color: ctTextMuted, marginBottom: "6px", display: "block" }}>Gender</label>
