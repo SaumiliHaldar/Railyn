@@ -77,12 +77,12 @@ const Navbar = () => {
       {/* Mobile Navigation Drawer */}
       <div className={`mobile-drawer ${drawerOpen ? 'open' : ''}`}>
         <div className="drawer-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Link to="/" onClick={() => setDrawerOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
             <div style={{ width: '44px', height: '44px', background: 'transparent', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               <img src={logo} alt="Railyn Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
             <span style={{ fontFamily: 'var(--heading)', color: 'var(--text-main)', fontSize: '22px', letterSpacing: '-0.5px', fontWeight: '800' }}>Railyn</span>
-          </div>
+          </Link>
           <button 
             type="button" 
             style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-main)' }}
