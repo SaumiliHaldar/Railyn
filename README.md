@@ -1,6 +1,6 @@
 # Railyn
 
-This repository contains the source code for Railyn, a state-of-the-art, high-performance digital railway booking engine and autonomous travel platform. Integrated with a modern web dashboard, Railyn delivers seamless, IRCTC-style ticket bookings, dynamic pricing, sub-millisecond atomic seat allocation, real-time telemetry streaming via MQTT, and an autonomous delay-mitigation engine.
+This repository contains the source code for Railyn, a production-grade digital railway booking engine. Integrated with a modern web dashboard, Railyn delivers seamless, IRCTC-style ticket bookings, dynamic pricing, race-free atomic seat allocation, real-time telemetry streaming via MQTT, and an automated delay-mitigation engine.
 
 ## Table of Contents
 
@@ -16,29 +16,29 @@ This repository contains the source code for Railyn, a state-of-the-art, high-pe
 
 ## About the Project
 
-Railyn is a professionalized, high-concurrency train booking and scheduling platform designed to handle modern railway operations. By leveraging a high-performance Python ASGI backend, atomic shared-memory buffers, and a robust real-time event pipeline, Railyn facilitates instant booking transactions, automated waitlist clearing, and self-healing delay-routing mechanisms to ensure a resilient, zero-babysitting travel ecosystem.
+Railyn is a full-stack, high-concurrency train booking and scheduling platform built to handle real-world railway operations at scale. By leveraging a high-performance Python ASGI backend, atomic shared-memory buffers, and a robust real-time event pipeline, Railyn delivers instant booking transactions, automated waitlist clearing, and intelligent delay-routing mechanisms — all without manual intervention.
 
 ## Features
 
-- **Atomic Seat Allocation**: Implements a dedicated multi-process shared-memory arena for sub-millisecond, deadlock-free seat inventory reservations and waitlist sequencing.
-- **Upstash Redis Caching**: Employs an intelligent distributed caching tier that accelerates search routes (`/trn_search`) to sub-millisecond latencies while dynamically injecting real-time seat inventories.
-- **Write-Ahead Logging (WAL)**: Enforces transaction-safe atomicity for bookings. All pending/committed transaction ledger entries are routed programmatically through standard logging streams rather than physical disk I/O, ensuring zero-clutter execution and container-native portability.
+- **Atomic Seat Allocation**: Implements a dedicated multi-process shared-memory arena for deadlock-free seat inventory reservations and waitlist sequencing, bypassing database-level locking for high-throughput concurrency.
+- **Upstash Redis Caching**: Employs an intelligent distributed caching tier that accelerates search routes (`/trn_search`) with in-memory lookups while dynamically injecting real-time seat inventories.
+- **Transaction State Logging**: Enforces booking atomicity via a programmatic state ledger. All pending/committed transaction entries are routed through isolated multiprocessing locks and console-native logging streams, ensuring clean, container-portable execution without disk I/O bottlenecks.
 - **Background Email Pipeline**: Handles booking confirmations, cancellations, and waitlist upgrades asynchronously using FastAPI's BackgroundTasks, including QR code generation and PDF ticket delivery via Google Apps Script.
 - **Dynamic Pricing Engine**: Multi-tiered pricing calculations utilizing travel distance, class multipliers (General, Sleeper, 3AC, 2AC, 1AC), and age concessions.
-- **Cryptographic Razorpay Checkout**: Fully integrated secure checkout verifying order signatures, payment capture status, and calculated totals in Python to prevent fraud.
+- **Secure Razorpay Checkout**: Fully integrated payment flow verifying Razorpay order signatures, payment capture status, and calculated totals server-side in Python to prevent tampering.
 - **Real-Time Telemetry & Alerts**: Instant server-to-client event pushing powered by EMQX MQTT Brokers, enabling live notifications and immediate action prompts for passengers.
-- **Autonomous Delay Mitigation**: A zero-babysitting routing subsystem that monitors train schedules and automatically offers affected passengers seat swaps on faster alternative trains.
-- **Automated Communication Hub**: Zero-SMTP integration utilizing Google Apps Script nodes to dispatch professional IRCTC-themed booking receipts, cancellation tickets, seat-upgrade notices, and dynamic QR-coded Electronic Reservation Slips (ERS) as PDFs.
-- **Secure Authentication**: Integrates Clerk identity management for secure, zero-trust JWT credential verification with automated local-development bypasses.
+- **Proactive Delay Mitigation**: A background routing subsystem that monitors train schedules and automatically surfaces seat-swap options on faster alternative trains for affected passengers.
+- **Automated Communication Hub**: Serverless email integration utilizing Google Apps Script nodes to dispatch professional IRCTC-themed booking receipts, cancellation tickets, seat-upgrade notices, and dynamic QR-coded Electronic Reservation Slips (ERS) as PDFs.
+- **Secure Authentication**: Integrates Clerk identity management for JWT-verified session handling with automated local-development bypasses.
 
 ## Technologies Used
 
 - **FastAPI**: Modern, high-performance, asynchronous web framework for Python APIs.
-- **Redis**: Secure, high-performance key-value caching database accessed over TLS/SSL for accelerated train search results.
+- **Redis**: High-performance key-value caching database accessed over TLS/SSL via Upstash for accelerated train search results.
 - **React & TypeScript**: Interactive, type-safe, component-driven frontend architecture.
 - **Vite & Tailwind CSS v4**: Ultra-fast build toolchain and a highly stylized, utility-first modern visual design.
 - **MongoDB**: NoSQL document store with programmatically configured indexes on startup for optimized schedule joins, train lookups, and PNR queries.
-- **Shared Memory Box**: Specialized process-isolated memory buffer for race-free inventory management.
+- **Shared Memory Buffer**: Specialized process-isolated memory buffer for race-free, concurrent inventory management.
 - **Paho MQTT & EMQX**: Fast, lightweight publish/subscribe messaging infrastructure for real-time telemetry streaming.
 - **Google Apps Script**: Serverless proxy endpoint for reliable email delivery and PDF generation.
 - **Clerk**: Comprehensive user identity management and secure session validation.
@@ -106,25 +106,25 @@ Railyn is a professionalized, high-concurrency train booking and scheduling plat
 
 - **Access the Dashboard**: Navigate to [http://localhost:5173](http://localhost:5173) in your browser.
 - **Authenticate & Profile**: Log in securely using Clerk, sync your profile, and manage your saved passengers list.
-- **Book & Swap Tickets**: Search train routes, complete secure Razorpay checkout, receive PDF tickets, swap trains, or handle delays autonomously.
+- **Book & Swap Tickets**: Search train routes, complete secure Razorpay checkout, receive PDF tickets, swap trains, or handle delays proactively.
 - **Simulate Real-Time Scenarios**: Trigger background processes such as waitlist upgrades or train delay rerouting alerts.
 
 ## Core Architecture & Engines
 
 ### Shared Memory Buffer
-- **Sub-Millisecond Allocation**: Bypasses slow disk-bound database locks by executing thread-safe, atomic seat reservations inside a high-speed shared memory buffer, then syncing updates asynchronously.
+- **Concurrent Seat Allocation**: Bypasses slow database-level locks by executing thread-safe, atomic seat reservations inside a high-speed shared memory buffer shared across worker processes, then syncing updates asynchronously to MongoDB.
 
-### Write-Ahead Logging (WAL)
-- **High-Throughput Atomicity**: Guarantees seat reservation sequence integrity using programmatically isolated memory blocks synchronized under multiprocessing locks. To preserve fast container startups and eliminate permission bottlenecks, it logs states cleanly via console-native logging streams rather than slower disk-bound write-ahead files.
+### Transaction State Logging
+- **Booking Atomicity**: Guarantees seat reservation sequence integrity using programmatically isolated memory blocks synchronized under multiprocessing locks. States are logged via console-native streams rather than disk-bound files, preserving fast container startups and eliminating permission bottlenecks.
 
 ### Background Email Pipeline
-- **Zero-Process Email Dispatch**: Email notifications (booking confirmations, cancellations, waitlist upgrades, train swaps) are dispatched using FastAPI's native `BackgroundTasks`. Emails fire immediately after the API response is returned — no separate worker process, no message broker queue, no operational overhead.
+- **Zero-Overhead Email Dispatch**: Email notifications (booking confirmations, cancellations, waitlist upgrades, train swaps) are dispatched using FastAPI's native `BackgroundTasks`. Emails fire immediately after the API response is returned — no separate worker process, no message broker queue, no operational overhead.
 
-### Autonomous Routing Engine
-- **Self-Healing Logistics**: Continuously tracks delays and cancellations via the MQTT engine. If a disruption occurs, the backend locates optimal alternatives, verifies seat availability, and streams dynamic swap prompts to users.
+### Delay Routing Engine
+- **Intelligent Disruption Handling**: Continuously tracks delays and cancellations via the MQTT engine. If a disruption occurs, the backend automatically locates optimal alternatives, verifies seat inventory, and streams dynamic swap prompts directly to affected users — no manual triage required.
 
 ### Google Apps Script Node
-- **Serverless PDF Ticket Generator**: Formulates professional HTML templates into highly stylized PDFs containing automated travel details, passenger rosters, dynamic QR codes, and sends them directly via Gmail.
+- **Serverless PDF Ticket Generator**: Renders professional HTML templates into stylized PDFs containing travel details, passenger rosters, dynamic QR codes, and delivers them directly via Gmail.
 
 ## Contributing
 
