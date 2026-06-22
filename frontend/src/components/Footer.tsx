@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { SignedIn } from "@clerk/clerk-react";
 import { Link } from "react-router-dom";
 import { FaGithub, FaLinkedin, FaMapMarkerAlt, FaPhoneAlt, FaEnvelope } from "react-icons/fa";
 import { X } from "lucide-react";
