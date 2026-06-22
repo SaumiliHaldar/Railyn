@@ -102,11 +102,9 @@ const Footer = () => {
               <li>
                 <Link to="/contact">Contact Us</Link>
               </li>
-              <SignedIn>
-                <li>
-                  <Link to="/dashboard">My Bookings</Link>
-                </li>
-              </SignedIn>
+              <li>
+                <Link to="/dashboard">My Bookings</Link>
+              </li>
             </ul>
           </div>
 

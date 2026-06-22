@@ -524,7 +524,7 @@ const Trains = () => {
       
 
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 items-start ct-layout" style={{ margin: "24px auto", display: "grid", gridTemplateColumns: trains.length > 0 ? "280px 1fr" : "1fr", gap: "24px" }}>
+      <div className={`max-w-[1200px] mx-auto px-4 sm:px-6 items-start ct-layout ${trains.length > 0 ? "grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6" : "block"}`} style={{ margin: "24px auto" }}>
         
         {/* Left Filters Sidebar — only shown when trains exist */}
         {trains.length > 0 && (
