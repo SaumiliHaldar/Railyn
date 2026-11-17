@@ -18,28 +18,7 @@ _train_to_idx = {}
 _shm = None
 _inventory_array = None
 
-class WALEngine:
-    def __init__(self, filepath=None):
-        # File logging is completely disabled to avoid disk clutter per user request.
-        self.filepath = None
-
-    def write_pending_log(self, tx_id, train_number, class_type, delta, expected_remaining):
-        """Logs a pending seat allocation to the console instead of a file."""
-
-        logging.getLogger("railyn.wal").info(
-            f"WAL [PENDING]: tx_id={tx_id}, train={train_number}, class={class_type}, delta={delta}, remaining={expected_remaining}"
-        )
-
-    def write_commit_log(self, tx_id):
-        """Logs a committed seat allocation to the console instead of a file."""
-
-        logging.getLogger("railyn.wal").info(f"WAL [COMMIT]: tx_id={tx_id}")
-
-    async def recover_state(self, db):
-        """Clean start - file logging is disabled."""
-        logging.getLogger("railyn.wal").info("WAL: Log file disabled. Clean start.")
-
-wal_engine = WALEngine()
+wal_log = logging.getLogger("railyn.wal")
 
 async def init_shm(db):
     """Initializes shared memory. Should be called once by the main process."""
@@ -133,11 +112,8 @@ def reserve_seats_atomic(train_number, class_type, num_passengers, tx_id=None):
             new_seats = int(_inventory_array[idx, cls_idx])
             
             if tx_id:
-                try:
-                    wal_engine.write_pending_log(tx_id, train_number, class_type, num_passengers, new_seats)
-                except Exception as e:
-                    print(f"WAL Write Error: {e}")
-                    
+                wal_log.info(f"WAL [PENDING]: tx_id={tx_id}, train={train_number}, class={class_type}, delta={num_passengers}, remaining={new_seats}")
+
             return True, new_seats
         return False, current_seats
 

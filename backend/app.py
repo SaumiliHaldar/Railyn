@@ -79,17 +79,9 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
 security_optional = HTTPBearer(auto_error=False)
 
 def verify_token_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional)):
-    if not credentials:
-        return None
-    if not CLERK_SECRET_KEY:
-        return {"sub": "local_dev_user"}
-    token = credentials.credentials
     try:
-        jwks = get_jwks()
-        # verify_exp re-enabled — tokens must not be expired
-        payload = jwt.decode(token, jwks, algorithms=["RS256"], options={"verify_aud": False})
-        return payload
-    except Exception:
+        return verify_token(credentials) if credentials else None
+    except HTTPException:
         return None
 
 async def create_indexes(db):
@@ -144,10 +136,6 @@ async def lifespan(app: FastAPI):
     # Initialize Shared Memory for seat inventory
     logger.info("Initializing Shared Memory Box...")
     await shared_mem.init_shm(app.state.db)
-    
-    # Recover WAL state from log files
-    logger.info("Running Crash-Resilient WAL Recovery...")
-    await shared_mem.wal_engine.recover_state(app.state.db)
     
     yield
     logger.info("Closing MongoDB connection, cleaning up SHM, and closing Redis...")
@@ -212,20 +200,6 @@ class DelayRequest(BaseModel):
 class SwapRequest(BaseModel):
     old_booking_id: str
     new_train_number: str
-
-# ── Pricing Utility ──────────────────────────────────────────
-CLASS_MULTIPLIERS = {
-    "General": 0.65,
-    "Sleeper": 1.0,
-    "3AC": 2.4,
-    "2AC": 3.6,
-    "1AC": 5.4
-}
-BASE_RATE = 0.65 # INR per KM
-
-def calculate_fare(dist, cls, train_type="Express", age=30):
-    res = pricing.FareEngine.calculate_fare(dist, cls, train_type, age)
-    return res["total"]
 
 class UserRequest(BaseModel):
     email: str
@@ -434,7 +408,7 @@ async def train_search(request: Request, from_stn: str, to_stn: str):
         t_type = t.get("type", "Express")
         
         for cls in shared_mem.CLASSES:
-            fares[cls] = calculate_fare(dist, cls, t_type)
+            fares[cls] = pricing.FareEngine.calculate_fare(dist, cls, t_type)["total"]
             
             # Smart Waitlist Probability Heuristic
             count = t["seat_inventory"].get(cls, 0)
@@ -476,7 +450,7 @@ async def book_ticket(request: Request, booking: BookingRequest, background_task
     # 2. Verify Payment (CRITICAL SECURITY FIX)
     dist = train.get("distance", 100)
     t_type = train.get("type", "Express")
-    recalculated_fare = sum([calculate_fare(dist, booking.class_type, t_type, p.age) for p in booking.passengers])
+    recalculated_fare = sum(pricing.FareEngine.calculate_fare(dist, booking.class_type, t_type, p.age)["total"] for p in booking.passengers)
     
     if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET and booking.razorpay_payment_id:
         try:
@@ -603,10 +577,7 @@ async def book_ticket(request: Request, booking: BookingRequest, background_task
     
     # Write WAL commit log if the seat reservation succeeded
     if success:
-        try:
-            shared_mem.wal_engine.write_commit_log(tx_id)
-        except Exception as e:
-            logger.error(f"Failed to write WAL commit log for {tx_id}: {e}")
+        shared_mem.wal_log.info(f"WAL [COMMIT]: tx_id={tx_id}")
     
     # Trigger Non-blocking Booking Confirmation Email + PDF ERS Attachment via BackgroundTasks
     background_tasks.add_task(trigger_email, "BOOKING", booking.user_email or "passenger@railyn.co", {
